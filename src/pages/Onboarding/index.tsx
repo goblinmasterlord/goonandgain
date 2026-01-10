@@ -10,5 +10,6 @@ export function OnboardingLayout() {
 
 export { WelcomePage } from './Welcome'
 export { PersonalDataPage } from './PersonalData'
+export { ProgramSelectPage } from './ProgramSelect'
 export { TrainingSetupPage } from './TrainingSetup'
 export { ReadyPage } from './Ready'

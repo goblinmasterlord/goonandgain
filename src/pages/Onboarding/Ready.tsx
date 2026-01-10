@@ -49,6 +49,7 @@ export function ReadyPage() {
         currentWeightKg: data.weight || 80,
         gender: data.gender || 'male',
         birthYear: data.age ? new Date().getFullYear() - data.age : undefined,
+        splitType: data.splitType || 'bro-split',
         trainingDays: data.trainingDays || {},
         weightUpdatedAt: new Date(),
       })

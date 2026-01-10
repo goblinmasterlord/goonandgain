@@ -1,9 +1,31 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getUser, db } from '@/lib/db'
+import { getUser, db, updateUserSplit } from '@/lib/db'
 import { hasGeminiApiKey, saveGeminiApiKey } from '@/lib/ai'
 import { Button } from '@/components/ui'
-import type { User } from '@/types'
+import { cn } from '@/lib/utils/cn'
+import type { User, SplitType, TrainingDays } from '@/types'
+
+// Default schedules for each split type
+const BRO_SPLIT_DEFAULT: TrainingDays = {
+  monday: 'chest',
+  tuesday: 'back',
+  wednesday: 'shoulders',
+  thursday: 'arms',
+  friday: 'legs',
+  saturday: 'flex',
+  sunday: 'rest',
+}
+
+const PPL_DEFAULT: TrainingDays = {
+  monday: 'push',
+  tuesday: 'pull',
+  wednesday: 'legs',
+  thursday: 'push',
+  friday: 'pull',
+  saturday: 'legs',
+  sunday: 'rest',
+}
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -15,6 +37,8 @@ export function SettingsPage() {
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [hasApiKey, setHasApiKey] = useState(false)
   const [devTapCount, setDevTapCount] = useState(0)
+  const [showSplitConfirm, setShowSplitConfirm] = useState(false)
+  const [pendingSplitType, setPendingSplitType] = useState<SplitType | null>(null)
 
   useEffect(() => {
     loadUser()
@@ -71,6 +95,31 @@ export function SettingsPage() {
   const handleClearApiKey = () => {
     localStorage.removeItem('gemini_api_key')
     setHasApiKey(false)
+  }
+
+  const handleSplitChange = (newSplitType: SplitType) => {
+    if (newSplitType === user?.splitType) return
+    setPendingSplitType(newSplitType)
+    setShowSplitConfirm(true)
+  }
+
+  const confirmSplitChange = async () => {
+    if (!user || !pendingSplitType) return
+
+    try {
+      const newTrainingDays = pendingSplitType === 'ppl' ? PPL_DEFAULT : BRO_SPLIT_DEFAULT
+      await updateUserSplit(pendingSplitType, newTrainingDays)
+      setUser({ ...user, splitType: pendingSplitType, trainingDays: newTrainingDays })
+      setShowSplitConfirm(false)
+      setPendingSplitType(null)
+    } catch (error) {
+      console.error('Failed to update split type:', error)
+    }
+  }
+
+  const cancelSplitChange = () => {
+    setShowSplitConfirm(false)
+    setPendingSplitType(null)
   }
 
   const trainingDaysCount = user?.trainingDays
@@ -162,6 +211,95 @@ export function SettingsPage() {
           </div>
         </div>
       </section>
+
+      {/* Training Program Section */}
+      <section className="px-5 py-4 border-b border-text-muted/10">
+        <h2 className="text-2xs font-display uppercase tracking-wider text-text-muted mb-4">
+          Edzésprogram
+        </h2>
+
+        <div className="p-4 bg-bg-secondary border border-text-muted/20">
+          <p className="text-2xs font-display uppercase tracking-wider text-text-muted mb-3">
+            Válassz edzésfelosztást
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleSplitChange('bro-split')}
+              className={cn(
+                'p-4 border-2 transition-all text-left',
+                user?.splitType === 'bro-split'
+                  ? 'border-accent bg-accent/10'
+                  : 'border-text-muted/30 hover:border-text-muted/50'
+              )}
+            >
+              <p className={cn(
+                'font-display text-sm font-bold uppercase tracking-wide',
+                user?.splitType === 'bro-split' ? 'text-accent' : 'text-text-primary'
+              )}>
+                Bro Split
+              </p>
+              <p className="text-2xs text-text-muted mt-1">
+                5-6 nap, 1× izomcsoport/hét
+              </p>
+            </button>
+
+            <button
+              onClick={() => handleSplitChange('ppl')}
+              className={cn(
+                'p-4 border-2 transition-all text-left',
+                user?.splitType === 'ppl'
+                  ? 'border-accent bg-accent/10'
+                  : 'border-text-muted/30 hover:border-text-muted/50'
+              )}
+            >
+              <p className={cn(
+                'font-display text-sm font-bold uppercase tracking-wide',
+                user?.splitType === 'ppl' ? 'text-accent' : 'text-text-primary'
+              )}>
+                PPL
+              </p>
+              <p className="text-2xs text-text-muted mt-1">
+                6 nap, 2× izomcsoport/hét
+              </p>
+            </button>
+          </div>
+
+          {user?.splitType && (
+            <p className="text-2xs text-text-muted mt-3 text-center">
+              Aktív: <span className="text-accent font-bold">
+                {user.splitType === 'ppl' ? 'Push/Pull/Legs' : 'Bro Split'}
+              </span>
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Split Change Confirmation Modal */}
+      {showSplitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className="w-full max-w-sm bg-bg-secondary border-2 border-text-muted/30 p-6">
+            <h3 className="font-display text-lg font-bold uppercase tracking-wide text-text-primary mb-2">
+              Program váltás
+            </h3>
+            <p className="text-text-secondary text-sm mb-4">
+              Biztosan váltani szeretnél{' '}
+              <span className="text-accent font-bold">
+                {pendingSplitType === 'ppl' ? 'Push/Pull/Legs' : 'Bro Split'}
+              </span>{' '}
+              programra? A heti beosztásod az alapértelmezettre áll vissza.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="ghost" onClick={cancelSplitChange}>
+                MÉGSE
+              </Button>
+              <Button onClick={confirmSplitChange}>
+                VÁLTÁS
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Coach Bebi Section */}
       <section className="px-5 py-4 border-b border-text-muted/10">

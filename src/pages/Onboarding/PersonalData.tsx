@@ -18,7 +18,7 @@ export function PersonalDataPage() {
         gender,
         age: age ? parseInt(age) : undefined,
       }))
-      navigate('/onboarding/training')
+      navigate('/onboarding/program')
     }
   }
 
@@ -26,7 +26,7 @@ export function PersonalDataPage() {
     <div className="min-h-screen bg-bg-primary">
       {/* Progress bar */}
       <div className="h-1 bg-bg-elevated">
-        <div className="h-full w-1/3 bg-accent" />
+        <div className="h-full w-1/4 bg-accent" />
       </div>
 
       <div className="px-6 py-8">
@@ -35,7 +35,7 @@ export function PersonalDataPage() {
           <div className="flex items-center gap-3 mb-4">
             <span className="font-mono text-sm text-accent">01</span>
             <div className="flex-1 h-px bg-text-muted/20" />
-            <span className="font-mono text-sm text-text-muted">03</span>
+            <span className="font-mono text-sm text-text-muted">04</span>
           </div>
           <h1 className="font-display text-3xl font-extrabold uppercase tracking-wide mb-2">
             Személyes adatok
