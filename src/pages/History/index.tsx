@@ -70,11 +70,11 @@ export function HistoryPage() {
   return (
     <div className="min-h-screen bg-bg-primary pb-20">
       {/* Header */}
-      <header className="px-5 pt-6 pb-4 border-b-2 border-text-muted/20">
-        <h1 className="font-display text-2xl font-extrabold uppercase tracking-wide">
+      <header className="px-4 pt-5 pb-3 border-b-2 border-text-muted/20">
+        <h1 className="font-display text-xl font-extrabold uppercase tracking-wide">
           Előzmények
         </h1>
-        <p className="text-text-muted text-sm mt-1">
+        <p className="text-text-muted text-xs mt-0.5">
           {sessions.length > 0
             ? `${sessions.length} befejezett edzés`
             : 'Korábbi edzéseid itt jelennek meg'}

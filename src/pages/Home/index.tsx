@@ -27,22 +27,22 @@ export function HomePage() {
   return (
     <div className="min-h-screen bg-bg-primary">
       {/* Hero Header */}
-      <header className="relative px-5 pt-8 pb-6 border-b-2 border-text-muted/20">
+      <header className="relative px-4 pt-6 pb-4 border-b-2 border-text-muted/20">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-2xs font-display uppercase tracking-[0.3em] text-text-muted mb-1">
-              SZEMÉLYES EDZÉSTERVEZŐ
+          <Link to="/" className="block">
+            <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-0.5">
+              EDZÉSTERVEZŐ
             </p>
-            <h1 className="font-display text-4xl font-extrabold tracking-tight">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight">
               <span className="text-text-primary">GOON</span>
               <span className="text-accent">&</span>
               <span className="text-text-primary">GAIN</span>
             </h1>
-          </div>
-          <div className="flex items-start gap-4">
+          </Link>
+          <div className="flex items-start gap-3">
             <div className="text-right">
               <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted">HÉT</p>
-              <p className="font-mono text-2xl font-bold text-accent">02</p>
+              <p className="font-mono text-xl font-bold text-accent">02</p>
             </div>
             <button
               onClick={() => navigate('/settings')}
@@ -63,44 +63,44 @@ export function HomePage() {
       </header>
 
       {/* Today's Workout - Main CTA */}
-      <section className="px-5 py-6">
+      <section className="px-4 py-5">
         <div className="relative bg-bg-secondary border-2 border-text-muted/30 overflow-hidden">
           {/* Accent stripe */}
-          <div className="absolute top-0 left-0 bottom-0 w-2 bg-muscle-chest" />
+          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-muscle-chest" />
 
           {/* Grid pattern overlay */}
           <div className="absolute inset-0 bg-grid opacity-50" />
 
-          <div className="relative p-6 pl-8">
-            <div className="flex items-start justify-between mb-6">
+          <div className="relative p-5 pl-6">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-2xs font-display uppercase tracking-[0.3em] text-text-muted mb-2">
+                <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-1">
                   MAI EDZÉS
                 </p>
-                <h2 className="font-display text-3xl font-extrabold text-text-primary tracking-wide">
+                <h2 className="font-display text-2xl font-extrabold text-text-primary tracking-wide">
                   {todayWorkout.nameHu}
                 </h2>
               </div>
               <div className="text-right">
-                <div className="inline-block px-3 py-1 border border-muscle-chest text-muscle-chest">
-                  <span className="font-mono text-xs">CHEST</span>
+                <div className="inline-block px-2 py-0.5 border border-muscle-chest text-muscle-chest">
+                  <span className="font-mono text-2xs">CHEST</span>
                 </div>
               </div>
             </div>
 
             {/* Stats row */}
-            <div className="flex gap-8 mb-6">
+            <div className="flex gap-6 mb-5">
               <div>
-                <p className="font-mono text-3xl font-bold text-text-primary">{todayWorkout.exercises}</p>
-                <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted">GYAKORLAT</p>
+                <p className="font-mono text-2xl font-bold text-text-primary">{todayWorkout.exercises}</p>
+                <p className="text-2xs font-display uppercase tracking-[0.15em] text-text-muted">GYAKORLAT</p>
               </div>
               <div>
-                <p className="font-mono text-3xl font-bold text-text-primary">~{todayWorkout.sets}</p>
-                <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted">SOROZAT</p>
+                <p className="font-mono text-2xl font-bold text-text-primary">~{todayWorkout.sets}</p>
+                <p className="text-2xs font-display uppercase tracking-[0.15em] text-text-muted">SOROZAT</p>
               </div>
               <div>
-                <p className="font-mono text-3xl font-bold text-text-primary">{todayWorkout.duration}</p>
-                <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted">PERC</p>
+                <p className="font-mono text-2xl font-bold text-text-primary">{todayWorkout.duration}</p>
+                <p className="text-2xs font-display uppercase tracking-[0.15em] text-text-muted">PERC</p>
               </div>
             </div>
 
@@ -115,17 +115,17 @@ export function HomePage() {
       </section>
 
       {/* Weekly Progress */}
-      <section className="px-5 py-4">
+      <section className="px-4 py-4">
         <div className="section-header">
           <span className="section-title">HETI ÁTTEKINTÉS</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {/* Completed workouts */}
           <div className="stat-block">
             <div className="flex items-baseline gap-1">
-              <span className="font-mono text-4xl font-bold text-accent">{weekProgress.completed}</span>
-              <span className="text-text-muted font-mono text-lg">/{weekProgress.total}</span>
+              <span className="font-mono text-3xl font-bold text-accent">{weekProgress.completed}</span>
+              <span className="text-text-muted font-mono text-base">/{weekProgress.total}</span>
             </div>
             <p className="stat-label">TELJESÍTETT</p>
           </div>
@@ -133,8 +133,8 @@ export function HomePage() {
           {/* Streak */}
           <div className="stat-block">
             <div className="flex items-baseline gap-1">
-              <span className="font-mono text-4xl font-bold text-success">12</span>
-              <span className="text-text-muted font-mono text-lg">nap</span>
+              <span className="font-mono text-3xl font-bold text-success">12</span>
+              <span className="text-text-muted font-mono text-base">nap</span>
             </div>
             <p className="stat-label">SOROZAT</p>
           </div>
@@ -142,7 +142,7 @@ export function HomePage() {
       </section>
 
       {/* Week Schedule */}
-      <section className="px-5 py-4">
+      <section className="px-4 py-4">
         <div className="section-header">
           <span className="section-title">EZ A HÉT</span>
         </div>

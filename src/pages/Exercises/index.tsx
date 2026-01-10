@@ -56,15 +56,15 @@ export function ExercisesPage() {
   return (
     <div className="min-h-screen bg-bg-primary pb-20">
       {/* Header */}
-      <header className="px-5 pt-8 pb-4 border-b-2 border-text-muted/20">
-        <p className="text-2xs font-display uppercase tracking-[0.3em] text-text-muted mb-1">
-          GYAKORLATKÖNYVTÁR
+      <header className="px-4 pt-5 pb-3 border-b-2 border-text-muted/20">
+        <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-0.5">
+          KÖNYVTÁR
         </p>
-        <h1 className="font-display text-3xl font-extrabold uppercase tracking-wide">
+        <h1 className="font-display text-xl font-extrabold uppercase tracking-wide">
           Gyakorlatok
         </h1>
-        <p className="text-text-secondary text-sm mt-1">
-          {allExercises.length} gyakorlat az adatbázisban
+        <p className="text-text-secondary text-xs mt-0.5">
+          {allExercises.length} gyakorlat
         </p>
       </header>
 
