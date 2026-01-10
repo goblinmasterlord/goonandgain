@@ -6,7 +6,9 @@
       "Bash(npm create:*)",
       "Bash(npm init:*)",
       "Bash(npx tsc --noEmit)",
-      "Bash(timeout 10 npm run dev:*)"
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(npm run build:*)",
+      "mcp__firecrawl__firecrawl_scrape"
     ],
     "deny": [],
     "ask": []
