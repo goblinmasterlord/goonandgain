@@ -357,9 +357,11 @@ FOR each exercise in workout:
 
 ---
 
-### 4.6 AI Coach Feedback (Gemini 3 Pro)
+### 4.6 AI Coach Feedback (Gemini 3 Flash)
 
-**Integration:** Gemini 3 Pro via user's API key
+**Integration:** Gemini 3 Flash (`gemini-3-flash-preview`) via user's API key
+
+> **Why Gemini 3 Flash?** Google's most balanced model - optimized for speed, scale, and frontier intelligence. Perfect for real-time coaching feedback.
 
 **Trigger Points:**
 
@@ -667,7 +669,7 @@ Respond in Hungarian language only.
 
 | Service | Purpose | Model |
 |---------|---------|-------|
-| Gemini | AI Coach feedback | Gemini 3 Pro (user's API key) |
+| Gemini | AI Coach feedback | **Gemini 3 Flash** (`gemini-3-flash-preview`) - user's API key |
 | Gemini | Exercise image generation | Nano Banana Pro (user's API key) |
 
 ### 6.2 Image Generation Prompt Template

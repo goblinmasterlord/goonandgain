@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useWorkoutStore } from '@/stores'
 import { getExerciseById, muscleGroups, equipmentTypes } from '@/data'
 import { Button } from '@/components/ui'
@@ -28,6 +29,24 @@ export function SetLogger() {
   } = useWorkoutStore()
 
   const [showSwapModal, setShowSwapModal] = useState(false)
+  const [showSkipToast, setShowSkipToast] = useState(false)
+  const [skippedSetNumber, setSkippedSetNumber] = useState<number | null>(null)
+
+  // Auto-hide skip toast after 2 seconds
+  useEffect(() => {
+    if (showSkipToast) {
+      const timer = setTimeout(() => {
+        setShowSkipToast(false)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [showSkipToast])
+
+  const handleSkipSet = () => {
+    setSkippedSetNumber(currentSetNumber)
+    setShowSkipToast(true)
+    skipSet()
+  }
 
   if (!template) return null
 
@@ -301,7 +320,7 @@ export function SetLogger() {
             Csere
           </button>
           <button
-            onClick={skipSet}
+            onClick={handleSkipSet}
             className="flex-1 py-3 border border-text-muted/30 text-text-muted font-display text-sm uppercase tracking-wider hover:border-danger hover:text-danger transition-colors"
           >
             Kihagyás
@@ -309,7 +328,28 @@ export function SetLogger() {
         </div>
       </div>
 
-      {/* Swap Modal - TODO: Implement */}
+      {/* Skip Toast Notification */}
+      <AnimatePresence>
+        {showSkipToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50"
+          >
+            <div className="bg-danger px-6 py-3 shadow-harsh flex items-center gap-3">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="square" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              <span className="font-display text-sm uppercase tracking-wider text-white font-semibold">
+                {skippedSetNumber}. sorozat kihagyva
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Swap Modal */}
       {showSwapModal && (
         <SwapExerciseModal
           exerciseId={exercise.id}

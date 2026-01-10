@@ -49,6 +49,9 @@ export default {
         'safe-bottom': 'env(safe-area-inset-bottom)',
         'safe-top': 'env(safe-area-inset-top)',
       },
+      minHeight: {
+        dvh: '100dvh',
+      },
       borderRadius: {
         none: '0',
       },

@@ -13,7 +13,7 @@ GoonAndGain is a **Hungarian-language PWA gym planner** for intermediate lifters
 - **Framework:** React 18 + TypeScript + Vite
 - **Styling:** Tailwind CSS (brutalist design - NO rounded corners)
 - **State:** Zustand (session state) + Dexie.js (IndexedDB)
-- **AI:** Vercel AI SDK with Gemini (key in `.env`)
+- **AI:** Gemini 3 Flash (`gemini-3-flash-preview`) - user provides API key
 - **Animations:** Framer Motion
 - **PWA:** vite-plugin-pwa
 - **Deployment:** Vercel
@@ -27,7 +27,7 @@ src/
 ├── components/
 │   ├── ui/                 # Base components (Button, Input, Card)
 │   ├── layout/             # AppShell, BottomNav
-│   ├── workout/            # SetLogger, RestTimer (DONE)
+│   ├── workout/            # SetLogger, RestTimer, ExerciseTransition, WorkoutSummary (DONE)
 │   ├── dashboard/          # StrengthBenchmarks (DONE)
 │   ├── ai/                 # PostWorkoutFeedback (DONE)
 │   ├── pwa/                # OfflineIndicator, InstallPrompt, UpdatePrompt (DONE)
@@ -219,7 +219,7 @@ See PRD.md Appendix A for full translation reference.
 - [x] Estimated max tracking in database
 - [x] Strength Benchmarks with bodyweight ratios
 - [x] StrengthBenchmarks component on Progress page
-- [x] Coach Bebi AI integration (Gemini)
+- [x] Coach Bebi AI integration (Gemini 3 Flash)
 - [x] Coach page with chat interface
 - [x] Post-workout feedback component
 - [x] Weekly review feature
@@ -229,6 +229,9 @@ See PRD.md Appendix A for full translation reference.
 - [x] PWA + Offline support
 - [x] Settings page with profile management
 - [x] Weight check-in reminders
+- [x] Exercise Transition screen with Coach Bebi messages
+- [x] Workout Summary screen with performance analysis
+- [x] Coach Bebi personality update (aggressive/funny/roasting)
 
 ---
 
@@ -275,7 +278,12 @@ The workout flow is managed by the `workoutStore` (Zustand):
    - Opens modal with alternative exercises
    - Updates the template in-memory (not persisted)
 
-4. **End Workout** - User clicks "Befejezés"
+4. **Skip Set** - User can skip the current set
+   - Shows toast notification: "{N}. sorozat kihagyva" (red, 2 seconds)
+   - Advances to next set or triggers transition screen
+   - Toast uses Framer Motion animation (slide up, scale)
+
+5. **End Workout** - User clicks "Befejezés"
    - Session is marked complete via `completeSession(sessionId)`
    - User is returned to Home page
 
@@ -301,6 +309,125 @@ restTimeRemaining: number
 - `getSessionWithSets(sessionId)` - Get session with all its set logs
 - `getSetsInDateRange(start, end)` - Get all sets within date range (for volume)
 - `getWeekStart(date)` - Get Monday of the week (for week navigation)
+
+---
+
+## Workout Transition Screens
+
+The app shows Coach Bebi-style transition screens between exercises and at workout completion. Both screens use `z-[60]` to render above the BottomNav (z-50).
+
+### Exercise Transition (`src/components/workout/ExerciseTransition.tsx`)
+
+Shows after completing all sets of an exercise, before moving to the next one.
+
+**Message Categories:**
+```typescript
+const COMPLETION_MESSAGES = {
+  excellent: [...],  // Good performance (RIR 1-2)
+  tooEasy: [...],    // Too easy (RIR 3-4)
+  earlyFinish: [...] // Skipped sets early
+}
+```
+
+**Features:**
+- Full-screen overlay with `z-[60]` (above BottomNav)
+- Coach Bebi avatar image (`/bebi-avatar.png`)
+- 4-column stats grid: sets, reps, total kg, top set weight
+- Fun fact card (e.g., "több mint egy tonna!")
+- Next exercise preview with muscle color indicator
+- Background scroll prevention
+- "TOVÁBB 💪" button to proceed
+
+**Store State:**
+```typescript
+showExerciseTransition: boolean
+transitionData: {
+  completedExerciseId: string
+  completedExerciseSets: SetLog[]
+  nextExerciseId: string | null
+  wasEarlyFinish: boolean  // true if skipped sets
+} | null
+```
+
+### Workout Summary (`src/components/workout/WorkoutSummary.tsx`)
+
+Shows after completing the last exercise (workout complete).
+
+**Message Categories:**
+```typescript
+const WORKOUT_MESSAGES = {
+  beast: [...],   // Great workout (90%+ completion, low RIR)
+  good: [...],    // Solid effort (75%+ completion)
+  meh: [...],     // Too easy or some skips
+  short: [...]    // Many skipped sets (<50% completion)
+}
+```
+
+**Analysis Logic:**
+```typescript
+function analyzeWorkout(completedSets, totalExpectedSets) {
+  const completionRate = completedSets.length / totalExpectedSets
+  if (completionRate < 0.5) return 'short'
+  if (completionRate < 0.75) return 'meh'
+  const avgRir = ...
+  if (avgRir >= 3) return 'meh'
+  if (avgRir <= 2 && completionRate >= 0.9) return 'beast'
+  return 'good'
+}
+```
+
+**Features:**
+- Full-screen overlay with `z-[60]` (above BottomNav)
+- Coach Bebi avatar image
+- 4-column stats grid (sets, duration, reps, total kg)
+- Fun facts generator based on workout data:
+  - Weight comparisons (tonna, autó, motor)
+  - Rep counts
+  - Duration achievements
+  - Efficiency metrics
+- Scrollable exercise breakdown list
+- Color-coded completion status per exercise
+- "BEFEJEZÉS 🔥" button to finish
+
+**Store Actions:**
+- `dismissExerciseTransition()` - Advance to next exercise
+- `dismissWorkoutSummary()` - Complete and exit workout
+
+### Coach Bebi Avatar Images
+
+Mood-specific avatar images in `/public/`:
+
+| File | ExerciseTransition | WorkoutSummary |
+|------|-------------------|----------------|
+| `bebi-proud.png` | excellent (RIR 1-2) | beast (90%+ completion, low RIR) |
+| `bebi-avatar.png` | (default) | good (solid workout) |
+| `bebi-disappointed.png` | tooEasy (RIR 3+) | meh (high RIR or <75% completion) |
+| `bebi-angry.png` | earlyFinish (skipped sets) | short (<50% completion) |
+
+The `getBebiMood(category)` function in each component returns the appropriate image path based on performance analysis.
+
+### Layout Structure
+
+Both screens use this pattern to ensure button visibility:
+```tsx
+<div className="fixed inset-0 z-[60] flex flex-col">
+  {/* Scrollable content */}
+  <div className="flex-1 overflow-y-auto overscroll-contain">
+    {/* Stats, message, etc. */}
+  </div>
+
+  {/* Fixed button at bottom */}
+  <div className="flex-shrink-0 px-4 pt-3 pb-6 bg-bg-secondary">
+    <Button>...</Button>
+  </div>
+</div>
+```
+
+Key considerations:
+- `z-[60]` ensures overlay is above BottomNav (z-50)
+- `flex-col` with `flex-1` for scrollable content area
+- `flex-shrink-0` keeps button section fixed at bottom
+- `pb-6` provides enough padding above where BottomNav would be
 
 ---
 
@@ -431,7 +558,12 @@ The strength benchmarks feature (`src/lib/workout/strength.ts`) compares user's 
 
 ## Coach Bebi (AI Coach)
 
-Coach Bebi is the AI coach powered by Google Gemini (`src/lib/ai/coach.ts`).
+Coach Bebi is the AI coach powered by **Gemini 3 Flash** (`src/lib/ai/coach.ts`).
+
+### Model
+- **Model:** Gemini 3 Flash (`gemini-3-flash-preview`)
+- **Why:** Google's most balanced model - optimized for speed, scale, and frontier intelligence
+- **Docs:** https://ai.google.dev/gemini-api/docs/models#gemini-3-flash
 
 ### Features
 - **Post-workout feedback** - 2-3 sentence summary after completing a workout
@@ -450,7 +582,12 @@ Coach Bebi is the AI coach powered by Google Gemini (`src/lib/ai/coach.ts`).
 - `saveGeminiApiKey(key)` - Save API key to localStorage
 
 ### Prompt Templates (`src/lib/ai/prompts.ts`)
-- System prompt defines Coach Bebi's personality (motivating, direct, Hungarian)
+- System prompt defines Coach Bebi's personality:
+  - Aggressive but funny (like a strict but lovable coach)
+  - Uses CAPS LOCK sometimes for emphasis
+  - Roasts users in a motivating way
+  - Mix of Hungarian and gym bro slang
+  - Examples: "Ez a súly? A nagymamám is többet emel!", "RIR 4? Akkor minek jöttél be, pihenni?"
 - Context includes user profile, strength levels, weekly volume
 - Each function builds specific prompts for different use cases
 
@@ -529,6 +666,44 @@ Prompts users to update their weight if not updated in 7+ days.
 
 ---
 
+## Mobile Safari Compatibility
+
+### UUID Generation
+**Do NOT use `crypto.randomUUID()` directly** - it's not available in older iOS Safari (pre-15.4) or non-secure contexts. Use the `generateUUID()` helper in `src/pages/Onboarding/Ready.tsx` which provides fallbacks:
+1. `crypto.randomUUID()` - Modern browsers
+2. `crypto.getRandomValues()` - Wider support fallback
+3. `Math.random()` - Last resort
+
+### Safari Address Bar
+The bottom navigation uses `pb-safe` class (in `globals.css`) and the app uses `100dvh` (dynamic viewport height) to account for Safari's collapsing address bar. Key files:
+- `src/styles/globals.css` - `.pb-safe` class definition
+- `src/components/layout/AppShell.tsx` - Uses `min-h-dvh` and `pb-24`
+- `src/components/layout/BottomNav.tsx` - Uses `pb-safe` for padding
+- `tailwind.config.ts` - Defines `minHeight.dvh: '100dvh'`
+
+---
+
+## Routing & Auth Architecture
+
+The app uses React Router with route guards and context for auth state (`src/App.tsx`):
+
+### Key Components
+- **AuthContext** - Shares `needsOnboarding`, `isLoading`, `recheckUser` with route guards
+- **RequireUser** - Route guard that redirects to `/onboarding` if no user exists
+- **RequireOnboarding** - Route guard that redirects to `/` if user already exists
+
+### Router Creation
+**IMPORTANT:** The router is created ONCE outside the App component to prevent re-creation on state changes. Route guards read from context to handle conditional rendering.
+
+### Onboarding Flow
+When onboarding completes (`Ready.tsx`):
+1. User is saved to IndexedDB
+2. `onboarding-complete` custom event is dispatched
+3. App component listens and calls `recheckUser()`
+4. Route guards re-evaluate and redirect to home
+
+---
+
 ## Notes for Future Sessions
 
 - Always use **squared edges** (no rounded corners)
@@ -537,3 +712,5 @@ Prompts users to update their weight if not updated in 7+ days.
 - All user-facing text must be in **Hungarian**
 - Follow the brutalist/industrial design aesthetic
 - Check PRD.md for algorithm details (progressive overload, 1RM calculation)
+- **Avoid `crypto.randomUUID()`** - use fallback UUID generator for mobile Safari compatibility
+- **Use `dvh` units** for full-height layouts to handle Safari address bar

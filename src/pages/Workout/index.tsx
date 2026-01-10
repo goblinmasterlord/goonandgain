@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useWorkoutStore } from '@/stores'
-import { SetLogger, RestTimer } from '@/components/workout'
+import { SetLogger, RestTimer, ExerciseTransition, WorkoutSummary } from '@/components/workout'
 import { Button } from '@/components/ui'
 import { getTemplateTotalSets } from '@/data'
 
@@ -15,6 +15,7 @@ export function WorkoutPage() {
     endWorkout,
     completedSets,
     currentExerciseIndex,
+    showWorkoutSummary,
   } = useWorkoutStore()
 
   const [showEndConfirm, setShowEndConfirm] = useState(false)
@@ -70,8 +71,9 @@ export function WorkoutPage() {
   const completedSetCount = completedSets.length
   const progressPercent = totalSets > 0 ? (completedSetCount / totalSets) * 100 : 0
 
-  // Check if workout is complete
-  const isWorkoutComplete = currentExerciseIndex >= template.exercises.length - 1 &&
+  // Check if workout is complete (after dismissing summary)
+  const isWorkoutComplete = !showWorkoutSummary &&
+    currentExerciseIndex >= template.exercises.length - 1 &&
     completedSets.filter((s) => s.exerciseId === template.exercises[template.exercises.length - 1]?.exerciseId).length >=
     (template.exercises[template.exercises.length - 1]?.targetSets || 0)
 
@@ -118,6 +120,12 @@ export function WorkoutPage() {
 
       {/* Rest Timer Overlay */}
       <RestTimer />
+
+      {/* Exercise Transition Screen */}
+      <ExerciseTransition />
+
+      {/* Workout Summary Screen */}
+      <WorkoutSummary />
 
       {/* End Workout Confirmation */}
       {showEndConfirm && (

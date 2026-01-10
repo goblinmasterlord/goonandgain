@@ -12,7 +12,10 @@ import {
   type SessionSummary,
 } from './prompts'
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+// Gemini 3 Flash - Google's most balanced model for speed, scale, and frontier intelligence
+// Model ID: gemini-3-flash-preview (as of December 2025)
+// Docs: https://ai.google.dev/gemini-api/docs/models#gemini-3-flash
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent'
 
 export interface CoachResponse {
   success: boolean

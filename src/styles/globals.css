@@ -15,7 +15,9 @@
   }
 
   body {
-    @apply min-h-screen relative;
+    @apply relative;
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height - accounts for Safari address bar */
     overscroll-behavior: none;
   }
 
@@ -66,6 +68,19 @@
 
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Safe padding that accounts for Safari address bar */
+  .pb-safe {
+    /* Minimum padding + safe area inset for devices with notch/home indicator */
+    padding-bottom: max(env(safe-area-inset-bottom), 8px);
+  }
+
+  /* Ensure fixed elements at bottom have enough clearance */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .pb-safe {
+      padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+    }
   }
 }
 

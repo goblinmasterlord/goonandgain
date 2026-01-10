@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getUser, db } from '@/lib/db'
 import { hasGeminiApiKey, saveGeminiApiKey } from '@/lib/ai'
 import { Button } from '@/components/ui'
 import type { User } from '@/types'
 
 export function SettingsPage() {
+  const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showWeightEdit, setShowWeightEdit] = useState(false)
@@ -12,6 +14,7 @@ export function SettingsPage() {
   const [showApiKeyEdit, setShowApiKeyEdit] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [hasApiKey, setHasApiKey] = useState(false)
+  const [devTapCount, setDevTapCount] = useState(0)
 
   useEffect(() => {
     loadUser()
@@ -226,10 +229,22 @@ export function SettingsPage() {
         </h2>
 
         <div className="space-y-3">
-          <div className="p-4 bg-bg-secondary border border-text-muted/20 flex items-center justify-between">
+          <button
+            onClick={() => {
+              const newCount = devTapCount + 1
+              setDevTapCount(newCount)
+              if (newCount >= 5) {
+                navigate('/dev')
+                setDevTapCount(0)
+              }
+            }}
+            className="w-full p-4 bg-bg-secondary border border-text-muted/20 flex items-center justify-between text-left"
+          >
             <span className="font-display text-text-primary">Verzió</span>
-            <span className="font-mono text-text-muted">1.0.0</span>
-          </div>
+            <span className="font-mono text-text-muted">
+              1.0.0{devTapCount > 0 && devTapCount < 5 && ` (${5 - devTapCount})`}
+            </span>
+          </button>
 
           <div className="p-4 bg-bg-secondary border border-text-muted/20">
             <p className="font-display text-text-primary mb-2">GoonAndGain</p>

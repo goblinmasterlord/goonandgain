@@ -52,7 +52,7 @@ const navItems = [
 
 export function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t-2 border-text-muted/20 safe-bottom z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t-2 border-text-muted/20 z-50 pb-safe">
       <div className="flex items-stretch h-16">
         {navItems.map((item) => (
           <NavLink

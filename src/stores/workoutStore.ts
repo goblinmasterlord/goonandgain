@@ -21,6 +21,16 @@ interface WorkoutState {
   currentSetNumber: number
   completedSets: SetLog[]
 
+  // Transition screens
+  showExerciseTransition: boolean
+  transitionData: {
+    completedExerciseId: string
+    completedExerciseSets: SetLog[]
+    nextExerciseId: string | null
+    wasEarlyFinish: boolean  // true if skipped sets
+  } | null
+  showWorkoutSummary: boolean
+
   // Rest timer
   isResting: boolean
   restTimeRemaining: number
@@ -57,6 +67,10 @@ interface WorkoutState {
   // Load last session data
   loadLastSessionData: (exerciseId: string) => Promise<void>
 
+  // Transition actions
+  dismissExerciseTransition: () => Promise<void>
+  dismissWorkoutSummary: () => void
+
   // Reset
   reset: () => void
 
@@ -72,6 +86,9 @@ const initialState = {
   currentExerciseIndex: 0,
   currentSetNumber: 1,
   completedSets: [],
+  showExerciseTransition: false,
+  transitionData: null,
+  showWorkoutSummary: false,
   isResting: false,
   restTimeRemaining: 0,
   restTimerInterval: null,
@@ -150,23 +167,39 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
     // Check if we should move to next exercise
     if (currentSetNumber >= exercise.targetSets) {
-      // Move to next exercise
+      // Exercise complete - show transition screen
       const nextIndex = currentExerciseIndex + 1
-      if (nextIndex < template.exercises.length) {
+      const nextExerciseId = nextIndex < template.exercises.length
+        ? template.exercises[nextIndex].exerciseId
+        : null
+
+      // Get sets for the completed exercise
+      const exerciseSets = completedSets.filter(s => s.exerciseId === exercise.exerciseId)
+
+      if (nextExerciseId) {
+        // Show exercise transition screen
         set({
-          currentExerciseIndex: nextIndex,
-          currentSetNumber: 1,
           completedSets,
-          weightInput: '',
-          repsInput: '',
-          rirInput: null,
-          addedWeightInput: '',
+          showExerciseTransition: true,
+          transitionData: {
+            completedExerciseId: exercise.exerciseId,
+            completedExerciseSets: exerciseSets,
+            nextExerciseId,
+            wasEarlyFinish: false,
+          },
         })
-        // Load last session data for new exercise
-        await get().loadLastSessionData(template.exercises[nextIndex].exerciseId)
       } else {
-        // Workout complete
-        set({ completedSets })
+        // Workout complete - show summary
+        set({
+          completedSets,
+          showWorkoutSummary: true,
+          transitionData: {
+            completedExerciseId: exercise.exerciseId,
+            completedExerciseSets: exerciseSets,
+            nextExerciseId: null,
+            wasEarlyFinish: false,
+          },
+        })
       }
     } else {
       // Move to next set
@@ -183,25 +216,41 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
 
   skipSet: () => {
-    const { template, currentExerciseIndex, currentSetNumber } = get()
+    const { template, currentExerciseIndex, currentSetNumber, completedSets, sessionId } = get()
     if (!template) return
 
     const exercise = template.exercises[currentExerciseIndex]
     if (!exercise) return
 
     if (currentSetNumber >= exercise.targetSets) {
-      // Move to next exercise
+      // Exercise complete (with skips) - show transition
       const nextIndex = currentExerciseIndex + 1
-      if (nextIndex < template.exercises.length) {
+      const nextExerciseId = nextIndex < template.exercises.length
+        ? template.exercises[nextIndex].exerciseId
+        : null
+
+      const exerciseSets = completedSets.filter(s => s.exerciseId === exercise.exerciseId && s.sessionId === sessionId)
+
+      if (nextExerciseId) {
         set({
-          currentExerciseIndex: nextIndex,
-          currentSetNumber: 1,
-          weightInput: '',
-          repsInput: '',
-          rirInput: null,
-          addedWeightInput: '',
+          showExerciseTransition: true,
+          transitionData: {
+            completedExerciseId: exercise.exerciseId,
+            completedExerciseSets: exerciseSets,
+            nextExerciseId,
+            wasEarlyFinish: exerciseSets.length < exercise.targetSets,
+          },
         })
-        get().loadLastSessionData(template.exercises[nextIndex].exerciseId)
+      } else {
+        set({
+          showWorkoutSummary: true,
+          transitionData: {
+            completedExerciseId: exercise.exerciseId,
+            completedExerciseSets: exerciseSets,
+            nextExerciseId: null,
+            wasEarlyFinish: exerciseSets.length < exercise.targetSets,
+          },
+        })
       }
     } else {
       set({ currentSetNumber: currentSetNumber + 1 })
@@ -313,6 +362,35 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     if (lastSets.length > 0) {
       set({ weightInput: lastSets[0].weightKg.toString() })
     }
+  },
+
+  dismissExerciseTransition: async () => {
+    const { template, currentExerciseIndex, transitionData } = get()
+    if (!template || !transitionData?.nextExerciseId) return
+
+    // Move to next exercise
+    const nextIndex = currentExerciseIndex + 1
+    if (nextIndex < template.exercises.length) {
+      set({
+        currentExerciseIndex: nextIndex,
+        currentSetNumber: 1,
+        showExerciseTransition: false,
+        transitionData: null,
+        weightInput: '',
+        repsInput: '',
+        rirInput: null,
+        addedWeightInput: '',
+      })
+      // Load last session data for new exercise
+      await get().loadLastSessionData(template.exercises[nextIndex].exerciseId)
+    }
+  },
+
+  dismissWorkoutSummary: () => {
+    set({
+      showWorkoutSummary: false,
+      transitionData: null,
+    })
   },
 
   reset: () => {

@@ -5,9 +5,9 @@ import { WeightCheckInPrompt } from '@/components/weight'
 
 export function AppShell() {
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="min-h-dvh bg-bg-primary">
       <OfflineIndicator />
-      <main className="pb-20 safe-top">
+      <main className="pb-24 safe-top">
         <Outlet />
       </main>
       <BottomNav />

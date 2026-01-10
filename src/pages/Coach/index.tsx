@@ -3,6 +3,24 @@ import { hasGeminiApiKey, saveGeminiApiKey, askCoachBebi, getWeeklyReview } from
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils/cn'
 
+// Coach Bebi avatar component
+const BebiAvatar = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
+  const sizeClasses = {
+    sm: 'w-8 h-8',
+    md: 'w-12 h-12',
+    lg: 'w-20 h-20',
+  }
+  return (
+    <div className={cn('border-2 border-accent overflow-hidden flex-shrink-0', sizeClasses[size])}>
+      <img
+        src="/bebi-avatar.png"
+        alt="Coach Bebi"
+        className="w-full h-full object-cover"
+      />
+    </div>
+  )
+}
+
 interface Message {
   id: string
   role: 'user' | 'coach'
@@ -137,8 +155,8 @@ export function CoachPage() {
         </header>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <div className="w-20 h-20 border-2 border-accent flex items-center justify-center mb-6">
-            <span className="text-4xl">🤖</span>
+          <div className="mb-6">
+            <BebiAvatar size="lg" />
           </div>
           <h2 className="font-display text-lg font-bold uppercase tracking-wide text-center mb-2">
             Gemini API kulcs szükséges
@@ -181,9 +199,7 @@ export function CoachPage() {
       {/* Header */}
       <header className="px-5 pt-6 pb-4 border-b-2 border-text-muted/20">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 border-2 border-accent flex items-center justify-center">
-            <span className="text-2xl">💪</span>
-          </div>
+          <BebiAvatar size="md" />
           <div>
             <h1 className="font-display text-xl font-extrabold uppercase tracking-wide">Coach Bebi</h1>
             <p className="text-text-muted text-sm">AI edzéstanácsadó</p>
@@ -221,11 +237,12 @@ export function CoachPage() {
         {messages.map((message) => (
           <div
             key={message.id}
-            className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}
+            className={cn('flex gap-3', message.role === 'user' ? 'justify-end' : 'justify-start')}
           >
+            {message.role === 'coach' && <BebiAvatar size="sm" />}
             <div
               className={cn(
-                'max-w-[85%] p-4',
+                'max-w-[75%] p-4',
                 message.role === 'user'
                   ? 'bg-accent text-bg-primary'
                   : 'bg-bg-secondary border border-text-muted/20'
@@ -249,7 +266,8 @@ export function CoachPage() {
         ))}
 
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex gap-3 justify-start">
+            <BebiAvatar size="sm" />
             <div className="bg-bg-secondary border border-text-muted/20 p-4">
               <p className="text-2xs font-display uppercase tracking-wider text-accent mb-2">
                 Coach Bebi
