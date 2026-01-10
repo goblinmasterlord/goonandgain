@@ -1,3 +1,6 @@
+// Split types
+export type SplitType = 'bro-split' | 'ppl'
+
 // User types
 export interface User {
   id: string
@@ -5,6 +8,7 @@ export interface User {
   currentWeightKg: number
   gender: 'male' | 'female'
   birthYear?: number
+  splitType: SplitType
   trainingDays: TrainingDays
   weightUpdatedAt: Date
 }
@@ -19,7 +23,7 @@ export interface TrainingDays {
   sunday?: WorkoutType
 }
 
-export type WorkoutType = 'chest' | 'back' | 'shoulders' | 'arms' | 'legs' | 'flex' | 'rest'
+export type WorkoutType = 'chest' | 'back' | 'shoulders' | 'arms' | 'legs' | 'push' | 'pull' | 'flex' | 'rest'
 
 export interface WeightHistory {
   id?: number

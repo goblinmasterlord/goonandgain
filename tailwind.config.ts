@@ -33,6 +33,8 @@ export default {
           shoulders: '#9333ea',
           arms: '#ff0066',
           legs: '#00d4aa',
+          push: '#f97316',
+          pull: '#22d3ee',
         },
       },
       fontFamily: {

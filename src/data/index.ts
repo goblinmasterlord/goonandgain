@@ -13,17 +13,31 @@ export {
 
 // Workout templates
 export {
+  // Bro Split templates
   chestDayTemplate,
   backDayTemplate,
   shouldersDayTemplate,
   armsDayTemplate,
   legsDayTemplate,
   flexDayTemplate,
+  broSplitTemplates,
+  // PPL templates
+  pushDayATemplate,
+  pushDayBTemplate,
+  pullDayATemplate,
+  pullDayBTemplate,
+  legsDayATemplate,
+  legsDayBTemplate,
+  pplTemplates,
+  // All templates
   allTemplates,
+  // Helper functions
   getTemplateById,
   getTemplateByMuscle,
   getTemplateTotalSets,
   getTemplateEstimatedDuration,
+  getTemplatesBySplit,
+  getAvailableTemplatesBySplit,
 } from './templates'
 
 // Muscle group metadata

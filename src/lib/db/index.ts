@@ -9,6 +9,8 @@ import type {
   AIFeedback,
   EstimatedMax,
   RIR,
+  SplitType,
+  TrainingDays,
 } from '@/types'
 
 export class GoonAndGainDB extends Dexie {
@@ -47,7 +49,26 @@ export async function hasUser(): Promise<boolean> {
 
 // Get current user
 export async function getUser(): Promise<User | undefined> {
-  return await db.users.toCollection().first()
+  const user = await db.users.toCollection().first()
+  if (user && !user.splitType) {
+    // Default to bro-split for existing users who don't have splitType set
+    user.splitType = 'bro-split'
+  }
+  return user
+}
+
+// Update user's split type and training days
+export async function updateUserSplit(
+  splitType: SplitType,
+  trainingDays: TrainingDays
+): Promise<void> {
+  const user = await getUser()
+  if (!user) throw new Error('No user found')
+
+  await db.users.update(user.id, {
+    splitType,
+    trainingDays,
+  })
 }
 
 // Session helpers

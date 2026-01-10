@@ -13,6 +13,7 @@ import {
   OnboardingLayout,
   WelcomePage,
   PersonalDataPage,
+  ProgramSelectPage,
   TrainingSetupPage,
   ReadyPage,
 } from '@/pages/Onboarding'
@@ -104,6 +105,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <WelcomePage /> },
       { path: 'personal', element: <PersonalDataPage /> },
+      { path: 'program', element: <ProgramSelectPage /> },
       { path: 'training', element: <TrainingSetupPage /> },
       { path: 'ready', element: <ReadyPage /> },
     ],

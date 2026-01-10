@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  allTemplates,
   getTemplateTotalSets,
   getTemplateEstimatedDuration,
+  getAvailableTemplatesBySplit,
 } from '@/data'
 import {
   getRecentSessions,
   getSetsInDateRange,
   getWeekStart,
+  getUser,
 } from '@/lib/db'
-import type { WorkoutTemplate } from '@/types'
+import type { WorkoutTemplate, SplitType } from '@/types'
 
 // Muscle colors for template cards
 const MUSCLE_COLORS: Record<string, string> = {
@@ -20,6 +21,8 @@ const MUSCLE_COLORS: Record<string, string> = {
   shoulders: '#9333ea',
   arms: '#ff0066',
   legs: '#00d4aa',
+  push: '#f97316',
+  pull: '#22d3ee',
   flex: '#8a8a8a',
 }
 
@@ -50,6 +53,18 @@ const MUSCLE_ICONS: Record<string, React.ReactNode> = {
       <path d="M9 2v8l-2 10h4l1-8 1 8h4l-2-10V2H9z" />
     </svg>
   ),
+  push: (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M4 12h12l-4-4m4 4l-4 4M20 12h-4" />
+      <path d="M4 12c0 0 2-4 8-4s8 4 8 4" strokeWidth="2" stroke="currentColor" fill="none" />
+    </svg>
+  ),
+  pull: (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20 12H8l4-4m-4 4l4 4M4 12h4" />
+      <path d="M20 12c0 0-2 4-8 4s-8-4-8-4" strokeWidth="2" stroke="currentColor" fill="none" />
+    </svg>
+  ),
   flex: (
     <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" />
@@ -61,18 +76,26 @@ export function HomePage() {
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(true)
   const [hasWorkoutHistory, setHasWorkoutHistory] = useState(false)
+  const [splitType, setSplitType] = useState<SplitType>('bro-split')
+  const [availableTemplates, setAvailableTemplates] = useState<WorkoutTemplate[]>([])
   const [weeklyStats, setWeeklyStats] = useState({
     sessionsThisWeek: 0,
     totalSetsThisWeek: 0,
   })
 
-  // Filter out flex template for now (it's empty)
-  const availableTemplates = allTemplates.filter(t => t.exercises.length > 0)
-
   // Load data on mount
   useEffect(() => {
     async function loadData() {
       try {
+        // Get user's split type
+        const user = await getUser()
+        const userSplitType = user?.splitType || 'bro-split'
+        setSplitType(userSplitType)
+
+        // Get templates for user's split type
+        const templates = getAvailableTemplatesBySplit(userSplitType)
+        setAvailableTemplates(templates)
+
         // Get recent sessions to determine if user has history
         const sessions = await getRecentSessions(10)
         setHasWorkoutHistory(sessions.length > 0)
@@ -122,20 +145,31 @@ export function HomePage() {
               <span className="text-text-primary">GAIN</span>
             </h1>
           </Link>
-          <button
-            onClick={() => navigate('/settings')}
-            className="p-2 border border-text-muted/30 text-text-muted hover:border-accent hover:text-accent transition-colors"
-            aria-label="Beállítások"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path
-                strokeLinecap="square"
-                strokeLinejoin="miter"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path strokeLinecap="square" strokeLinejoin="miter" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Current split type badge */}
+            <Link
+              to="/settings"
+              className="px-2 py-1 bg-bg-secondary border border-text-muted/30 hover:border-accent transition-colors"
+            >
+              <span className="text-2xs font-display uppercase tracking-wider text-accent">
+                {splitType === 'ppl' ? 'PPL' : 'BRO'}
+              </span>
+            </Link>
+            <button
+              onClick={() => navigate('/settings')}
+              className="p-2 border border-text-muted/30 text-text-muted hover:border-accent hover:text-accent transition-colors"
+              aria-label="Beállítások"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="square"
+                  strokeLinejoin="miter"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path strokeLinecap="square" strokeLinejoin="miter" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 
