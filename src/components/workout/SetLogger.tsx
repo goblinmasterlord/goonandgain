@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWorkoutStore } from '@/stores'
 import { getExerciseById, muscleGroups, equipmentTypes } from '@/data'
-import { Button } from '@/components/ui'
+import { Button, InfoTooltip } from '@/components/ui'
 import { cn } from '@/lib/utils/cn'
 import { calculateOverloadSuggestion, formatLastSessionDisplay } from '@/lib/workout'
 import type { RIR } from '@/types'
@@ -275,7 +275,27 @@ export function SetLogger() {
 
         {/* RIR Input */}
         <div>
-          <label className="label">RIR (Hány ismétlés maradt)</label>
+          <div className="flex items-center gap-2 mb-2">
+            <label className="label mb-0">RIR</label>
+            <InfoTooltip
+              content={
+                <div className="space-y-2">
+                  <p className="font-display text-xs uppercase tracking-wider text-accent mb-1">
+                    Reps In Reserve
+                  </p>
+                  <p>
+                    Mennyi ismétlést tudtál volna még megcsinálni a sorozat végén?
+                  </p>
+                  <ul className="space-y-1 text-xs">
+                    <li><span className="font-mono text-danger">RIR 1</span> = Majdnem max, 1 maradt</li>
+                    <li><span className="font-mono text-accent">RIR 2</span> = Ideális edzésintenzitás</li>
+                    <li><span className="font-mono text-warning">RIR 3</span> = Könnyű, növelj súlyt</li>
+                    <li><span className="font-mono text-text-muted">RIR 4+</span> = Túl könnyű</li>
+                  </ul>
+                </div>
+              }
+            />
+          </div>
           <div className="grid grid-cols-4 gap-2">
             {rirOptions.map((rir) => (
               <button

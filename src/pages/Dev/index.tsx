@@ -1,17 +1,93 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { db, getUser } from '@/lib/db'
 import { Button } from '@/components/ui'
 import { chestDayTemplate, backDayTemplate } from '@/data/templates'
 import type { RIR } from '@/types'
 
 type LoadingDemo = 'none' | 'app' | 'spinner' | 'coach' | 'skeleton'
+type TransitionDemo = 'none' | 'exercise-excellent' | 'exercise-easy' | 'exercise-skip' | 'summary-beast' | 'summary-meh' | 'summary-short'
+
+// Transition screen preview data
+const TRANSITION_DATA = {
+  'exercise-excellent': {
+    type: 'exercise',
+    mood: 'excellent' as const,
+    avatar: '/bebi-proud.png',
+    headline: 'BRUTÁLIS VOLT!',
+    subtext: 'Így kell ezt csinálni, NINCS MEGÁLLÁS!',
+    exercise: 'Fekvenyomás',
+    stats: { sets: 4, reps: 42, weight: 2800, top: 80 },
+    nextExercise: 'Ferde pad',
+  },
+  'exercise-easy': {
+    type: 'exercise',
+    mood: 'tooEasy' as const,
+    avatar: '/bebi-disappointed.png',
+    headline: 'EZ TÚLSÁGOSAN KÖNNYŰ VOLT!',
+    subtext: 'Legközelebb PAKOLJ FEL SÚLYT!',
+    exercise: 'Kábel keresztezés',
+    stats: { sets: 3, reps: 36, weight: 540, top: 20 },
+    nextExercise: 'Fekvőtámasz',
+  },
+  'exercise-skip': {
+    type: 'exercise',
+    mood: 'earlyFinish' as const,
+    avatar: '/bebi-angry.png',
+    headline: 'NA ÉS A TÖBBI?!',
+    subtext: 'Fele munka, fele eredmény. KÖVETKEZŐNÉL VÉGIG!',
+    exercise: 'Tárogatás',
+    stats: { sets: 2, reps: 16, weight: 720, top: 50 },
+    nextExercise: 'Tricepsz nyújtás',
+  },
+  'summary-beast': {
+    type: 'summary',
+    mood: 'beast' as const,
+    avatar: '/bebi-proud.png',
+    headline: 'BEAST MODE TELJESÍTVE!',
+    text: 'Ez az! LETOLTAD! Az izmok majd KIREPÜLNEK a pólóból!',
+    subtext: 'Most pedig ZABÁLJ és ALUDJ!',
+    stats: { sets: 24, expected: 26, duration: 58, reps: 248, weight: 8500 },
+    exercises: [
+      { name: 'Fekvenyomás', sets: 4, target: 4, top: '80kg × 8', color: '#ff4d00' },
+      { name: 'Ferde pad', sets: 4, target: 4, top: '60kg × 10', color: '#ff4d00' },
+      { name: 'Kábel keresztezés', sets: 3, target: 3, top: '20kg × 12', color: '#ff4d00' },
+    ],
+  },
+  'summary-meh': {
+    type: 'summary',
+    mood: 'meh' as const,
+    avatar: '/bebi-disappointed.png',
+    headline: 'LEHETETT VOLNA JOBB!',
+    text: 'Nézd, bejöttél, ez már valami. De tudom, hogy TÖBB VAN BENNED!',
+    subtext: 'A következő edzésen MUTASD MEG, mit tudsz igazán!',
+    stats: { sets: 18, expected: 26, duration: 42, reps: 180, weight: 4200 },
+    exercises: [
+      { name: 'Fekvenyomás', sets: 3, target: 4, top: '70kg × 6', color: '#ff4d00' },
+      { name: 'Ferde pad', sets: 3, target: 4, top: '50kg × 8', color: '#ff4d00' },
+    ],
+  },
+  'summary-short': {
+    type: 'summary',
+    mood: 'short' as const,
+    avatar: '/bebi-angry.png',
+    headline: 'EZ MIND?',
+    text: 'Na jó... ez egy kicsit RÖVID volt, nem gondolod?',
+    subtext: 'Remélem, legközelebb VÉGIG csinálod!',
+    stats: { sets: 8, expected: 26, duration: 18, reps: 72, weight: 1800 },
+    exercises: [
+      { name: 'Fekvenyomás', sets: 2, target: 4, top: '60kg × 6', color: '#ff4d00' },
+    ],
+  },
+}
 
 export function DevPage() {
   const navigate = useNavigate()
   const [isWorking, setIsWorking] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [loadingDemo, setLoadingDemo] = useState<LoadingDemo>('none')
+  const [transitionDemo, setTransitionDemo] = useState<TransitionDemo>('none')
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text })
@@ -206,9 +282,282 @@ export function DevPage() {
     }
   }
 
+  // Transition screen demos
+  const renderTransitionDemo = () => {
+    if (transitionDemo === 'none') return null
+
+    const data = TRANSITION_DATA[transitionDemo]
+    if (!data) return null
+
+    if (data.type === 'exercise') {
+      const exerciseData = data as typeof TRANSITION_DATA['exercise-excellent']
+      const moodColor = exerciseData.mood === 'excellent' ? 'bg-accent' :
+                       exerciseData.mood === 'tooEasy' ? 'bg-warning' : 'bg-danger'
+
+      return (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-bg-primary z-[60] flex flex-col"
+          >
+            <div className="flex-1 overflow-y-auto">
+              {/* Completed exercise header */}
+              <motion.div
+                initial={{ y: -30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="px-4 pt-6 pb-4 border-b border-text-muted/20"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-10 h-10 flex items-center justify-center ${moodColor}`}>
+                    {exerciseData.mood === 'excellent' ? (
+                      <svg className="w-5 h-5 text-bg-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="square" d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : exerciseData.mood === 'tooEasy' ? (
+                      <span className="text-bg-primary text-lg font-bold">?</span>
+                    ) : (
+                      <svg className="w-5 h-5 text-bg-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="square" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-2xs font-display uppercase tracking-wider text-text-muted">Kész</p>
+                    <h2 className="font-display text-lg font-bold uppercase tracking-wide text-text-primary">
+                      {exerciseData.exercise}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="bg-bg-secondary border border-accent p-2 text-center">
+                    <p className="font-mono text-xl font-bold text-accent">{exerciseData.stats.sets}</p>
+                    <p className="text-2xs text-text-muted">sorozat</p>
+                  </div>
+                  <div className="bg-bg-secondary border border-text-muted/20 p-2 text-center">
+                    <p className="font-mono text-xl font-bold text-text-primary">{exerciseData.stats.reps}</p>
+                    <p className="text-2xs text-text-muted">rep</p>
+                  </div>
+                  <div className="bg-bg-secondary border border-text-muted/20 p-2 text-center">
+                    <p className="font-mono text-xl font-bold text-text-primary">{exerciseData.stats.weight}</p>
+                    <p className="text-2xs text-text-muted">kg össz</p>
+                  </div>
+                  <div className="bg-bg-secondary border border-text-muted/20 p-2 text-center">
+                    <p className="font-mono text-xl font-bold text-text-primary">{exerciseData.stats.top}</p>
+                    <p className="text-2xs text-text-muted">kg top</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Coach Bebi */}
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="flex flex-col items-center justify-center px-4 py-4"
+              >
+                <motion.div
+                  animate={{ y: [0, -5, 0] }}
+                  transition={{ delay: 0.4, duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
+                  className="mb-2"
+                >
+                  <img src={exerciseData.avatar} alt="Coach Bebi" className="w-36 h-36 object-contain" />
+                </motion.div>
+
+                <motion.h1
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="font-display text-lg font-extrabold uppercase tracking-wide text-text-primary mb-1 text-center"
+                >
+                  {exerciseData.headline}
+                </motion.h1>
+
+                <motion.p
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-text-secondary text-sm text-center max-w-xs"
+                >
+                  {exerciseData.subtext}
+                </motion.p>
+              </motion.div>
+            </div>
+
+            {/* Next exercise */}
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="flex-shrink-0 px-4 pt-4 pb-6 border-t border-text-muted/20 bg-bg-secondary"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1.5 h-12 bg-muscle-chest" />
+                <div className="flex-1">
+                  <p className="text-2xs font-display uppercase tracking-wider text-accent mb-0.5">Következik</p>
+                  <h3 className="font-display text-lg font-bold uppercase tracking-wide text-text-primary">
+                    {exerciseData.nextExercise}
+                  </h3>
+                  <p className="text-text-muted text-sm">4×8-12 rep</p>
+                </div>
+                <p className="font-mono text-xl font-bold text-text-primary">
+                  2<span className="text-text-muted text-sm">/6</span>
+                </p>
+              </div>
+
+              <Button size="lg" className="w-full" onClick={() => setTransitionDemo('none')}>
+                TOVÁBB
+              </Button>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
+      )
+    }
+
+    // Summary screen
+    const summaryData = data as typeof TRANSITION_DATA['summary-beast']
+
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-bg-primary z-[60] flex flex-col"
+        >
+          <div className="flex-1 overflow-y-auto">
+            {/* Header with Bebi */}
+            <motion.div
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="px-4 pt-4 pb-3 text-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                className="mb-2"
+              >
+                <img src={summaryData.avatar} alt="Coach Bebi" className="w-40 h-40 object-contain mx-auto" />
+              </motion.div>
+
+              <motion.h1
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="font-display text-xl font-extrabold uppercase tracking-wide text-text-primary mb-1"
+              >
+                {summaryData.headline}
+              </motion.h1>
+
+              <motion.p
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-accent text-sm font-semibold"
+              >
+                {summaryData.text}
+              </motion.p>
+
+              <motion.p
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.45 }}
+                className="text-text-muted text-xs"
+              >
+                {summaryData.subtext}
+              </motion.p>
+            </motion.div>
+
+            {/* Stats grid */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="px-4 pb-4"
+            >
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                <div className="bg-bg-secondary border border-accent p-2 text-center">
+                  <p className="font-mono text-2xl font-bold text-accent">{summaryData.stats.sets}</p>
+                  <p className="text-2xs text-text-muted">/{summaryData.stats.expected}</p>
+                </div>
+                <div className="bg-bg-secondary border border-text-muted/20 p-2 text-center">
+                  <p className="font-mono text-2xl font-bold text-text-primary">{summaryData.stats.duration}</p>
+                  <p className="text-2xs text-text-muted">perc</p>
+                </div>
+                <div className="bg-bg-secondary border border-text-muted/20 p-2 text-center">
+                  <p className="font-mono text-2xl font-bold text-text-primary">{summaryData.stats.reps}</p>
+                  <p className="text-2xs text-text-muted">rep</p>
+                </div>
+                <div className="bg-bg-secondary border border-text-muted/20 p-2 text-center">
+                  <p className="font-mono text-2xl font-bold text-text-primary">
+                    {summaryData.stats.weight >= 1000 ? `${(summaryData.stats.weight / 1000).toFixed(1)}k` : summaryData.stats.weight}
+                  </p>
+                  <p className="text-2xs text-text-muted">kg</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Exercise breakdown */}
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              className="px-4 pb-4"
+            >
+              <h3 className="text-2xs font-display uppercase tracking-wider text-text-muted mb-2">
+                Gyakorlatok
+              </h3>
+
+              <div className="space-y-1.5">
+                {summaryData.exercises.map((ex, index) => (
+                  <motion.div
+                    key={ex.name}
+                    initial={{ x: -10, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.8 + index * 0.05 }}
+                    className="flex items-center gap-2 p-2 bg-bg-secondary border border-text-muted/10"
+                  >
+                    <div className="w-1 h-8" style={{ backgroundColor: ex.color }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display text-sm font-semibold text-text-primary truncate">
+                        {ex.name}
+                      </p>
+                      <p className="text-xs text-text-muted font-mono">{ex.top}</p>
+                    </div>
+                    <p className={`font-mono text-base font-bold ${ex.sets >= ex.target ? 'text-accent' : 'text-warning'}`}>
+                      {ex.sets}/{ex.target}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Finish button */}
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="flex-shrink-0 px-4 pt-3 pb-6 border-t border-text-muted/20 bg-bg-secondary"
+          >
+            <Button size="lg" className="w-full" onClick={() => setTransitionDemo('none')}>
+              BEFEJEZÉS
+            </Button>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-bg-primary pb-20">
       {renderLoadingDemo()}
+      {renderTransitionDemo()}
 
       {/* Header */}
       <header className="px-5 pt-6 pb-4 border-b-2 border-text-muted/20">
@@ -306,6 +655,49 @@ export function DevPage() {
             <Button onClick={() => handleGenerateSampleData(7)} disabled={isWorking} variant="secondary">
               7 NAP
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Transition Screens Section */}
+      <section className="px-5 py-4 border-b border-text-muted/10">
+        <h2 className="text-2xs font-display uppercase tracking-wider text-text-muted mb-4">
+          Transition Screens (Coach Bebi)
+        </h2>
+
+        <div className="space-y-3">
+          <div className="p-4 bg-bg-secondary border border-text-muted/20">
+            <h3 className="font-display text-sm uppercase tracking-wide text-text-primary mb-3">
+              Gyakorlat befejezés
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setTransitionDemo('exercise-excellent')} variant="secondary" className="text-success border-success/50">
+                EXCELLENT
+              </Button>
+              <Button onClick={() => setTransitionDemo('exercise-easy')} variant="secondary" className="text-warning border-warning/50">
+                TOO EASY
+              </Button>
+              <Button onClick={() => setTransitionDemo('exercise-skip')} variant="secondary" className="text-danger border-danger/50">
+                SKIPPED
+              </Button>
+            </div>
+          </div>
+
+          <div className="p-4 bg-bg-secondary border border-text-muted/20">
+            <h3 className="font-display text-sm uppercase tracking-wide text-text-primary mb-3">
+              Edzés összesítő
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setTransitionDemo('summary-beast')} variant="secondary" className="text-success border-success/50">
+                BEAST
+              </Button>
+              <Button onClick={() => setTransitionDemo('summary-meh')} variant="secondary" className="text-warning border-warning/50">
+                MEH
+              </Button>
+              <Button onClick={() => setTransitionDemo('summary-short')} variant="secondary" className="text-danger border-danger/50">
+                SHORT
+              </Button>
+            </div>
           </div>
         </div>
       </section>
