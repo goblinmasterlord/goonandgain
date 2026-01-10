@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(powershell:*)",
+      "Bash(npm create:*)",
+      "Bash(npm init:*)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(timeout 10 npm run dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

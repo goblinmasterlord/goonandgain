@@ -1,0 +1,335 @@
+import Dexie, { Table } from 'dexie'
+import type {
+  User,
+  WeightHistory,
+  Exercise,
+  WorkoutTemplate,
+  Session,
+  SetLog,
+  AIFeedback,
+  EstimatedMax,
+  RIR,
+} from '@/types'
+
+export class GoonAndGainDB extends Dexie {
+  users!: Table<User, string>
+  weightHistory!: Table<WeightHistory, number>
+  exercises!: Table<Exercise, string>
+  workoutTemplates!: Table<WorkoutTemplate, string>
+  sessions!: Table<Session, number>
+  setLogs!: Table<SetLog, number>
+  aiFeedback!: Table<AIFeedback, number>
+  estimatedMaxes!: Table<EstimatedMax, number>
+
+  constructor() {
+    super('GoonAndGainDB')
+
+    this.version(1).stores({
+      users: 'id, createdAt',
+      weightHistory: '++id, userId, recordedAt',
+      exercises: 'id, muscleGroupPrimary, equipment, type',
+      workoutTemplates: 'id, muscleFocus',
+      sessions: '++id, userId, templateId, date, startedAt',
+      setLogs: '++id, sessionId, exerciseId, loggedAt',
+      aiFeedback: '++id, userId, type, createdAt',
+      estimatedMaxes: '++id, userId, exerciseId, calculatedAt',
+    })
+  }
+}
+
+export const db = new GoonAndGainDB()
+
+// Helper to check if user exists
+export async function hasUser(): Promise<boolean> {
+  const count = await db.users.count()
+  return count > 0
+}
+
+// Get current user
+export async function getUser(): Promise<User | undefined> {
+  return await db.users.toCollection().first()
+}
+
+// Session helpers
+export async function createSession(templateId: string): Promise<number> {
+  const user = await getUser()
+  if (!user) throw new Error('No user found')
+
+  const session: Session = {
+    userId: user.id,
+    templateId,
+    date: new Date(),
+    startedAt: new Date(),
+  }
+  return await db.sessions.add(session)
+}
+
+export async function completeSession(sessionId: number, notes?: string): Promise<void> {
+  await db.sessions.update(sessionId, {
+    completedAt: new Date(),
+    notes,
+  })
+}
+
+export async function getActiveSession(): Promise<Session | undefined> {
+  const user = await getUser()
+  if (!user) return undefined
+
+  // Find session without completedAt
+  return await db.sessions
+    .where('userId')
+    .equals(user.id)
+    .filter((s) => !s.completedAt)
+    .first()
+}
+
+export async function getSessionById(id: number): Promise<Session | undefined> {
+  return await db.sessions.get(id)
+}
+
+// Set log helpers
+export async function logSet(
+  sessionId: number,
+  exerciseId: string,
+  setNumber: number,
+  weightKg: number,
+  reps: number,
+  rir: RIR,
+  addedWeightKg?: number
+): Promise<number> {
+  const setLog: SetLog = {
+    sessionId,
+    exerciseId,
+    setNumber,
+    weightKg,
+    reps,
+    rir,
+    addedWeightKg,
+    loggedAt: new Date(),
+  }
+  return await db.setLogs.add(setLog)
+}
+
+export async function getSetLogsForSession(sessionId: number): Promise<SetLog[]> {
+  return await db.setLogs.where('sessionId').equals(sessionId).toArray()
+}
+
+export async function getLastSetLogsForExercise(
+  exerciseId: string,
+  excludeSessionId?: number
+): Promise<SetLog[]> {
+  const user = await getUser()
+  if (!user) return []
+
+  // Get recent sessions for this user
+  const sessions = await db.sessions
+    .where('userId')
+    .equals(user.id)
+    .filter((s) => s.completedAt !== undefined && (!excludeSessionId || s.id !== excludeSessionId))
+    .reverse()
+    .sortBy('date')
+
+  if (sessions.length === 0) return []
+
+  // Get set logs from the most recent session that has this exercise
+  for (const session of sessions) {
+    const logs = await db.setLogs
+      .where('sessionId')
+      .equals(session.id!)
+      .filter((log) => log.exerciseId === exerciseId)
+      .sortBy('setNumber')
+
+    if (logs.length > 0) return logs
+  }
+
+  return []
+}
+
+export async function deleteSetLog(id: number): Promise<void> {
+  await db.setLogs.delete(id)
+}
+
+export async function getRecentSessions(limit: number = 10): Promise<Session[]> {
+  const user = await getUser()
+  if (!user) return []
+
+  return await db.sessions
+    .where('userId')
+    .equals(user.id)
+    .filter((s) => s.completedAt !== undefined)
+    .reverse()
+    .sortBy('date')
+    .then((sessions) => sessions.slice(0, limit))
+}
+
+// Get session with all its set logs
+export interface SessionWithSets extends Session {
+  sets: SetLog[]
+}
+
+export async function getSessionWithSets(sessionId: number): Promise<SessionWithSets | undefined> {
+  const session = await db.sessions.get(sessionId)
+  if (!session) return undefined
+
+  const sets = await db.setLogs
+    .where('sessionId')
+    .equals(sessionId)
+    .sortBy('loggedAt')
+
+  return { ...session, sets }
+}
+
+// Get all sessions with their set counts (for history list)
+export interface SessionSummary extends Session {
+  totalSets: number
+  exerciseCount: number
+}
+
+export async function getRecentSessionSummaries(limit: number = 20): Promise<SessionSummary[]> {
+  const sessions = await getRecentSessions(limit)
+
+  const summaries: SessionSummary[] = await Promise.all(
+    sessions.map(async (session) => {
+      const sets = await db.setLogs
+        .where('sessionId')
+        .equals(session.id!)
+        .toArray()
+
+      const uniqueExercises = new Set(sets.map((s) => s.exerciseId))
+
+      return {
+        ...session,
+        totalSets: sets.length,
+        exerciseCount: uniqueExercises.size,
+      }
+    })
+  )
+
+  return summaries
+}
+
+// Volume tracking helpers
+export interface WeeklyVolume {
+  muscleGroup: string
+  sets: number
+  avgRir: number
+}
+
+export async function getWeeklyVolume(weekStartDate: Date): Promise<WeeklyVolume[]> {
+  const user = await getUser()
+  if (!user) return []
+
+  const weekEnd = new Date(weekStartDate)
+  weekEnd.setDate(weekEnd.getDate() + 7)
+
+  // Get all sessions in this week
+  const sessions = await db.sessions
+    .where('userId')
+    .equals(user.id)
+    .filter(
+      (s) =>
+        s.completedAt !== undefined &&
+        new Date(s.date) >= weekStartDate &&
+        new Date(s.date) < weekEnd
+    )
+    .toArray()
+
+  if (sessions.length === 0) return []
+
+  // Get all set logs for these sessions
+  const allSets: SetLog[] = []
+  for (const session of sessions) {
+    const sets = await db.setLogs.where('sessionId').equals(session.id!).toArray()
+    allSets.push(...sets)
+  }
+
+  // We need to map exercises to muscle groups
+  // This requires importing exercise data, which we'll do in the component
+  // For now, return raw set data grouped by exercise
+  return []
+}
+
+// Get sets by exercise for a date range (used by Progress page)
+export async function getSetsInDateRange(
+  startDate: Date,
+  endDate: Date
+): Promise<SetLog[]> {
+  const user = await getUser()
+  if (!user) return []
+
+  const sessions = await db.sessions
+    .where('userId')
+    .equals(user.id)
+    .filter(
+      (s) =>
+        s.completedAt !== undefined &&
+        new Date(s.date) >= startDate &&
+        new Date(s.date) < endDate
+    )
+    .toArray()
+
+  const allSets: SetLog[] = []
+  for (const session of sessions) {
+    const sets = await db.setLogs.where('sessionId').equals(session.id!).toArray()
+    allSets.push(...sets)
+  }
+
+  return allSets
+}
+
+// Get start of current week (Monday)
+export function getWeekStart(date: Date = new Date()): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust for Sunday
+  d.setDate(diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Estimated Max helpers
+export async function saveEstimatedMax(
+  exerciseId: string,
+  estimated1RM: number
+): Promise<number> {
+  const user = await getUser()
+  if (!user) throw new Error('No user found')
+
+  return await db.estimatedMaxes.add({
+    userId: user.id,
+    exerciseId,
+    estimated1RM,
+    calculatedAt: new Date(),
+  })
+}
+
+export async function getLatestEstimatedMax(exerciseId: string): Promise<number | null> {
+  const user = await getUser()
+  if (!user) return null
+
+  const latest = await db.estimatedMaxes
+    .where('exerciseId')
+    .equals(exerciseId)
+    .filter((e) => e.userId === user.id)
+    .reverse()
+    .sortBy('calculatedAt')
+    .then((results) => results[0])
+
+  return latest?.estimated1RM ?? null
+}
+
+export async function getEstimatedMaxHistory(
+  exerciseId: string,
+  limit: number = 10
+): Promise<EstimatedMax[]> {
+  const user = await getUser()
+  if (!user) return []
+
+  return await db.estimatedMaxes
+    .where('exerciseId')
+    .equals(exerciseId)
+    .filter((e) => e.userId === user.id)
+    .reverse()
+    .sortBy('calculatedAt')
+    .then((results) => results.slice(0, limit))
+}

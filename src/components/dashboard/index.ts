@@ -1,0 +1,1 @@
+export { StrengthBenchmarks } from './StrengthBenchmarks'
