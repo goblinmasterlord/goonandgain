@@ -1,27 +1,110 @@
-import { Button } from '@/components/ui'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { chestDayTemplate, getTemplateTotalSets, getTemplateEstimatedDuration } from '@/data'
+import { motion } from 'framer-motion'
+import {
+  allTemplates,
+  getTemplateTotalSets,
+  getTemplateEstimatedDuration,
+} from '@/data'
+import {
+  getRecentSessions,
+  getSetsInDateRange,
+  getWeekStart,
+} from '@/lib/db'
+import type { WorkoutTemplate } from '@/types'
+
+// Muscle colors for template cards
+const MUSCLE_COLORS: Record<string, string> = {
+  chest: '#ff4d00',
+  back: '#0066ff',
+  shoulders: '#9333ea',
+  arms: '#ff0066',
+  legs: '#00d4aa',
+  flex: '#8a8a8a',
+}
+
+// Muscle icons (simple SVG paths)
+const MUSCLE_ICONS: Record<string, React.ReactNode> = {
+  chest: (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 4C8 4 4 6 4 10c0 2 1 4 2 5l1 5c0 1 1 2 2 2h6c1 0 2-1 2-2l1-5c1-1 2-3 2-5 0-4-4-6-8-6z" />
+    </svg>
+  ),
+  back: (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C9 2 7 4 7 7v2c-2 0-3 1-3 3v6c0 2 1 4 3 4h10c2 0 3-2 3-4v-6c0-2-1-3-3-3V7c0-3-2-5-5-5zm0 2c2 0 3 1 3 3v2H9V7c0-2 1-3 3-3z" />
+    </svg>
+  ),
+  shoulders: (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 4a4 4 0 00-4 4v2H4v6c0 2 2 4 4 4h8c2 0 4-2 4-4v-6h-4V8a4 4 0 00-4-4z" />
+    </svg>
+  ),
+  arms: (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M5 4v16h4v-6h2v6h4V4h-4v6h-2V4H5z" />
+    </svg>
+  ),
+  legs: (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M9 2v8l-2 10h4l1-8 1 8h4l-2-10V2H9z" />
+    </svg>
+  ),
+  flex: (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" />
+    </svg>
+  ),
+}
 
 export function HomePage() {
   const navigate = useNavigate()
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasWorkoutHistory, setHasWorkoutHistory] = useState(false)
+  const [weeklyStats, setWeeklyStats] = useState({
+    sessionsThisWeek: 0,
+    totalSetsThisWeek: 0,
+  })
 
-  // For now, we'll use the chest day template
-  // TODO: Load based on user's training schedule
-  const template = chestDayTemplate
+  // Filter out flex template for now (it's empty)
+  const availableTemplates = allTemplates.filter(t => t.exercises.length > 0)
 
-  const todayWorkout = {
-    type: template.muscleFocus,
-    nameHu: template.nameHu.toUpperCase(),
-    exercises: template.exercises.length,
-    sets: getTemplateTotalSets(template),
-    duration: getTemplateEstimatedDuration(template),
-    templateId: template.id,
-    isRestDay: false,
-  }
+  // Load data on mount
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Get recent sessions to determine if user has history
+        const sessions = await getRecentSessions(10)
+        setHasWorkoutHistory(sessions.length > 0)
 
-  const weekProgress = {
-    completed: 3,
-    total: 5,
+        // Get this week's stats
+        const weekStart = getWeekStart(new Date())
+        const weekEnd = new Date()
+        const setsThisWeek = await getSetsInDateRange(weekStart, weekEnd)
+
+        // Count unique sessions this week
+        const sessionIds = new Set(setsThisWeek.map(s => s.sessionId))
+
+        setWeeklyStats({
+          sessionsThisWeek: sessionIds.size,
+          totalSetsThisWeek: setsThisWeek.length,
+        })
+      } catch (error) {
+        console.error('Error loading home data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+        <div className="text-text-muted animate-pulse">Betöltés...</div>
+      </div>
+    )
   }
 
   return (
@@ -39,159 +122,250 @@ export function HomePage() {
               <span className="text-text-primary">GAIN</span>
             </h1>
           </Link>
-          <div className="flex items-start gap-3">
-            <div className="text-right">
-              <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted">HÉT</p>
-              <p className="font-mono text-xl font-bold text-accent">02</p>
-            </div>
-            <button
-              onClick={() => navigate('/settings')}
-              className="p-2 border border-text-muted/30 text-text-muted hover:border-accent hover:text-accent transition-colors"
-              aria-label="Beállítások"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path
-                  strokeLinecap="square"
-                  strokeLinejoin="miter"
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                />
-                <path strokeLinecap="square" strokeLinejoin="miter" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-          </div>
+          <button
+            onClick={() => navigate('/settings')}
+            className="p-2 border border-text-muted/30 text-text-muted hover:border-accent hover:text-accent transition-colors"
+            aria-label="Beállítások"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path
+                strokeLinecap="square"
+                strokeLinejoin="miter"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path strokeLinecap="square" strokeLinejoin="miter" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
       </header>
 
-      {/* Today's Workout - Main CTA */}
-      <section className="px-4 py-5">
-        <div className="relative bg-bg-secondary border-2 border-text-muted/30 overflow-hidden">
-          {/* Accent stripe */}
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-muscle-chest" />
+      {/* Main Content */}
+      {hasWorkoutHistory ? (
+        <ActiveUserView
+          weeklyStats={weeklyStats}
+          availableTemplates={availableTemplates}
+        />
+      ) : (
+        <EmptyState availableTemplates={availableTemplates} />
+      )}
+    </div>
+  )
+}
 
-          {/* Grid pattern overlay */}
-          <div className="absolute inset-0 bg-grid opacity-50" />
+// Empty state for new users
+function EmptyState({ availableTemplates }: { availableTemplates: WorkoutTemplate[] }) {
+  return (
+    <div className="px-4 py-6">
+      {/* Welcome message with Coach Bebi */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="text-center mb-6"
+      >
+        <img
+          src="/bebi-avatar.png"
+          alt="Coach Bebi"
+          className="w-24 h-24 object-contain mx-auto mb-3"
+        />
+        <h2 className="font-display text-xl font-extrabold uppercase tracking-wide text-text-primary mb-1">
+          VÁGJUNK BELE!
+        </h2>
+        <p className="text-text-secondary text-sm">
+          Válassz egy edzéstervet és kezdjük el a munkát!
+        </p>
+      </motion.div>
 
-          <div className="relative p-5 pl-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-1">
-                  MAI EDZÉS
-                </p>
-                <h2 className="font-display text-2xl font-extrabold text-text-primary tracking-wide">
-                  {todayWorkout.nameHu}
-                </h2>
-              </div>
-              <div className="text-right">
-                <div className="inline-block px-2 py-0.5 border border-muscle-chest text-muscle-chest">
-                  <span className="font-mono text-2xs">CHEST</span>
-                </div>
+      {/* Template cards */}
+      <div className="space-y-3">
+        <div className="section-header">
+          <span className="section-title">EDZÉSTERVEK</span>
+        </div>
+
+        {availableTemplates.map((template, index) => (
+          <TemplateCard key={template.id} template={template} index={index} />
+        ))}
+      </div>
+
+      {/* Exercise library link */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="mt-6 pt-4 border-t border-text-muted/20"
+      >
+        <Link
+          to="/exercises"
+          className="flex items-center justify-between p-3 bg-bg-secondary border border-text-muted/20 hover:border-accent transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 flex items-center justify-center bg-bg-elevated text-text-muted">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="square" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-display text-sm font-semibold text-text-primary uppercase">
+                GYAKORLATOK
+              </p>
+              <p className="text-xs text-text-muted">
+                Böngéssz a gyakorlatok között
+              </p>
+            </div>
+          </div>
+          <svg className="w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="square" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+      </motion.div>
+    </div>
+  )
+}
+
+// Template card component
+function TemplateCard({ template, index }: { template: WorkoutTemplate; index: number }) {
+  const color = MUSCLE_COLORS[template.muscleFocus] || '#8a8a8a'
+  const icon = MUSCLE_ICONS[template.muscleFocus]
+  const sets = getTemplateTotalSets(template)
+  const duration = getTemplateEstimatedDuration(template)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.2 }}
+    >
+      <Link
+        to={`/workout?template=${template.id}`}
+        className="block bg-bg-secondary border-2 border-text-muted/20 hover:border-accent transition-colors overflow-hidden"
+      >
+        <div className="flex items-stretch">
+          {/* Color stripe */}
+          <div className="w-1.5 flex-shrink-0" style={{ backgroundColor: color }} />
+
+          {/* Content */}
+          <div className="flex-1 p-4 flex items-center gap-4">
+            {/* Icon */}
+            <div
+              className="w-12 h-12 flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${color}20`, color }}
+            >
+              {icon}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-display text-lg font-bold uppercase tracking-wide text-text-primary">
+                {template.nameHu}
+              </h3>
+              <div className="flex gap-4 mt-1">
+                <span className="text-xs text-text-muted font-mono">
+                  {template.exercises.length} gyakorlat
+                </span>
+                <span className="text-xs text-text-muted font-mono">
+                  ~{sets} sorozat
+                </span>
+                <span className="text-xs text-text-muted font-mono">
+                  ~{duration} perc
+                </span>
               </div>
             </div>
 
-            {/* Stats row */}
-            <div className="flex gap-6 mb-5">
-              <div>
-                <p className="font-mono text-2xl font-bold text-text-primary">{todayWorkout.exercises}</p>
-                <p className="text-2xs font-display uppercase tracking-[0.15em] text-text-muted">GYAKORLAT</p>
-              </div>
-              <div>
-                <p className="font-mono text-2xl font-bold text-text-primary">~{todayWorkout.sets}</p>
-                <p className="text-2xs font-display uppercase tracking-[0.15em] text-text-muted">SOROZAT</p>
-              </div>
-              <div>
-                <p className="font-mono text-2xl font-bold text-text-primary">{todayWorkout.duration}</p>
-                <p className="text-2xs font-display uppercase tracking-[0.15em] text-text-muted">PERC</p>
-              </div>
-            </div>
-
-            {/* CTA */}
-            <Link to={`/workout?template=${todayWorkout.templateId}`}>
-              <Button size="lg" className="w-full shadow-harsh hover:shadow-harsh-lg">
-                EDZÉS INDÍTÁSA
-              </Button>
-            </Link>
+            {/* Arrow */}
+            <svg className="w-5 h-5 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="square" d="M9 5l7 7-7 7" />
+            </svg>
           </div>
         </div>
-      </section>
+      </Link>
+    </motion.div>
+  )
+}
 
-      {/* Weekly Progress */}
-      <section className="px-4 py-4">
+// View for users with workout history
+function ActiveUserView({
+  weeklyStats,
+  availableTemplates,
+}: {
+  weeklyStats: { sessionsThisWeek: number; totalSetsThisWeek: number }
+  availableTemplates: WorkoutTemplate[]
+}) {
+  return (
+    <>
+      {/* Weekly Stats */}
+      <section className="px-4 py-5">
         <div className="section-header">
-          <span className="section-title">HETI ÁTTEKINTÉS</span>
+          <span className="section-title">EZ A HÉT</span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {/* Completed workouts */}
           <div className="stat-block">
             <div className="flex items-baseline gap-1">
-              <span className="font-mono text-3xl font-bold text-accent">{weekProgress.completed}</span>
-              <span className="text-text-muted font-mono text-base">/{weekProgress.total}</span>
+              <span className="font-mono text-3xl font-bold text-accent">
+                {weeklyStats.sessionsThisWeek}
+              </span>
             </div>
-            <p className="stat-label">TELJESÍTETT</p>
+            <p className="stat-label">EDZÉS</p>
           </div>
 
-          {/* Streak */}
           <div className="stat-block">
             <div className="flex items-baseline gap-1">
-              <span className="font-mono text-3xl font-bold text-success">12</span>
-              <span className="text-text-muted font-mono text-base">nap</span>
+              <span className="font-mono text-3xl font-bold text-text-primary">
+                {weeklyStats.totalSetsThisWeek}
+              </span>
             </div>
             <p className="stat-label">SOROZAT</p>
           </div>
         </div>
       </section>
 
-      {/* Week Schedule */}
+      {/* Workout selection */}
       <section className="px-4 py-4">
         <div className="section-header">
-          <span className="section-title">EZ A HÉT</span>
+          <span className="section-title">VÁLASSZ EDZÉST</span>
         </div>
 
         <div className="space-y-2">
-          {[
-            { day: 'H', name: 'MELL', done: true, color: 'bg-muscle-chest' },
-            { day: 'K', name: 'HÁT', done: true, color: 'bg-muscle-back' },
-            { day: 'SZ', name: 'VÁLL', done: true, color: 'bg-muscle-shoulders' },
-            { day: 'CS', name: 'KAR', done: false, today: true, color: 'bg-muscle-arms' },
-            { day: 'P', name: 'LÁB', done: false, color: 'bg-muscle-legs' },
-            { day: 'SZO', name: 'FLEX', done: false, color: 'bg-text-muted' },
-            { day: 'V', name: 'PIHENŐ', done: false, color: 'bg-bg-elevated' },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className={`
-                flex items-center gap-4 p-3 border transition-all duration-100
-                ${item.today
-                  ? 'border-accent bg-accent/5'
-                  : item.done
-                    ? 'border-text-muted/20 bg-bg-secondary'
-                    : 'border-text-muted/10'
-                }
-              `}
-            >
-              <span className="font-mono text-sm text-text-muted w-8">{item.day}</span>
-              <div className={`w-1 h-6 ${item.color}`} />
-              <span className={`
-                font-display text-sm tracking-wider flex-1
-                ${item.done ? 'text-text-muted line-through' : item.today ? 'text-accent font-semibold' : 'text-text-secondary'}
-              `}>
-                {item.name}
-              </span>
-              {item.done && (
-                <svg className="w-5 h-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="square" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-              {item.today && (
-                <span className="text-2xs font-display uppercase tracking-wider text-accent animate-pulse-accent">
-                  MA
-                </span>
-              )}
-            </div>
+          {availableTemplates.map((template, index) => (
+            <TemplateCard key={template.id} template={template} index={index} />
           ))}
         </div>
       </section>
 
-    </div>
+      {/* Quick links */}
+      <section className="px-4 py-4 pb-8">
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            to="/history"
+            className="p-4 bg-bg-secondary border border-text-muted/20 hover:border-accent transition-colors"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="square" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-2xs font-display uppercase tracking-wider text-text-muted">
+                ELŐZMÉNYEK
+              </span>
+            </div>
+            <p className="text-sm text-text-secondary">Korábbi edzések</p>
+          </Link>
+
+          <Link
+            to="/progress"
+            className="p-4 bg-bg-secondary border border-text-muted/20 hover:border-accent transition-colors"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="square" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              <span className="text-2xs font-display uppercase tracking-wider text-text-muted">
+                HALADÁS
+              </span>
+            </div>
+            <p className="text-sm text-text-secondary">Volumen és erő</p>
+          </Link>
+        </div>
+      </section>
+    </>
   )
 }

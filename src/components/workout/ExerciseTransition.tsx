@@ -239,7 +239,7 @@ export function ExerciseTransition() {
                 <img
                   src={getBebiMood(performanceCategory)}
                   alt="Coach Bebi"
-                  className="w-36 h-36 object-contain"
+                  className="w-48 h-48 object-contain"
                 />
               </motion.div>
 
