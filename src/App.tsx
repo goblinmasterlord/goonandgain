@@ -18,6 +18,7 @@ import {
   ReadyPage,
 } from '@/pages/Onboarding'
 import { hasUser } from '@/lib/db'
+import { initSupabase, initSyncState, processSyncQueue } from '@/lib/sync'
 
 // Context to share auth state with route guards
 const AuthContext = createContext<{
@@ -131,6 +132,22 @@ function App() {
   useEffect(() => {
     checkUser()
 
+    // Initialize Supabase sync
+    initSupabase()
+    initSyncState()
+
+    // Process sync queue on startup if online
+    if (navigator.onLine) {
+      processSyncQueue()
+    }
+
+    // Listen for online/offline events
+    const handleOnline = () => {
+      processSyncQueue()
+    }
+
+    window.addEventListener('online', handleOnline)
+
     // Listen for onboarding completion (custom event from Ready.tsx)
     const handleOnboardingComplete = () => {
       checkUser()
@@ -139,6 +156,7 @@ function App() {
     window.addEventListener('onboarding-complete', handleOnboardingComplete)
 
     return () => {
+      window.removeEventListener('online', handleOnline)
       window.removeEventListener('onboarding-complete', handleOnboardingComplete)
     }
   }, [checkUser])

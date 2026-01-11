@@ -12,6 +12,7 @@ import type {
   SplitType,
   TrainingDays,
 } from '@/types'
+import type { SyncQueueItem } from '@/lib/sync/types'
 
 export class GoonAndGainDB extends Dexie {
   users!: Table<User, string>
@@ -22,6 +23,7 @@ export class GoonAndGainDB extends Dexie {
   setLogs!: Table<SetLog, number>
   aiFeedback!: Table<AIFeedback, number>
   estimatedMaxes!: Table<EstimatedMax, number>
+  syncQueue!: Table<SyncQueueItem, number>
 
   constructor() {
     super('GoonAndGainDB')
@@ -35,6 +37,19 @@ export class GoonAndGainDB extends Dexie {
       setLogs: '++id, sessionId, exerciseId, loggedAt',
       aiFeedback: '++id, userId, type, createdAt',
       estimatedMaxes: '++id, userId, exerciseId, calculatedAt',
+    })
+
+    // Version 2: Add sync queue for Supabase sync
+    this.version(2).stores({
+      users: 'id, createdAt',
+      weightHistory: '++id, userId, recordedAt',
+      exercises: 'id, muscleGroupPrimary, equipment, type',
+      workoutTemplates: 'id, muscleFocus',
+      sessions: '++id, userId, templateId, date, startedAt',
+      setLogs: '++id, sessionId, exerciseId, loggedAt',
+      aiFeedback: '++id, userId, type, createdAt',
+      estimatedMaxes: '++id, userId, exerciseId, calculatedAt',
+      syncQueue: '++id, table, action, syncedAt, createdAt',
     })
   }
 }

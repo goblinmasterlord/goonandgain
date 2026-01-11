@@ -15,7 +15,7 @@ Before doing anything else, you MUST read these files in order:
 3. **PRD.md** - Full product requirements with detailed algorithms and specifications (reference when needed)
 
 ### Quick Context
-- **Tech Stack:** React 18 + TypeScript + Vite, Tailwind CSS, Zustand, Dexie.js (IndexedDB), vite-plugin-pwa
+- **Tech Stack:** React 18 + TypeScript + Vite, Tailwind CSS, Zustand, Dexie.js (IndexedDB), Supabase (cloud sync), vite-plugin-pwa
 - **Language:** ALL user-facing text must be in **Hungarian**
 - **Design:** Industrial brutalist aesthetic - **NO rounded corners anywhere**, harsh shadows, grain texture, uppercase labels
 
@@ -45,7 +45,7 @@ We're working on **UX/UI improvements and app functionality**. This includes:
 src/
 ├── components/     # UI components (ui/, layout/, workout/, ai/, pwa/, weight/)
 ├── pages/          # Route pages (Onboarding, Home, Workout, Exercises, Progress, History, Coach, Settings)
-├── lib/            # Core logic (db/, ai/, workout/)
+├── lib/            # Core logic (db/, sync/, ai/, workout/)
 ├── stores/         # Zustand state (workoutStore.ts)
 ├── data/           # Static data (exercises, templates, muscleGroups)
 ├── types/          # TypeScript interfaces
@@ -53,6 +53,7 @@ src/
 
 ### Important Notes
 - Local-first app - all data stored in IndexedDB via Dexie
+- Optional Supabase cloud sync (see `supabase/SUPABASE.md`)
 - PWA with offline support
 - Progressive overload tracking with 1RM estimation
 - Strength benchmarks based on bodyweight ratios

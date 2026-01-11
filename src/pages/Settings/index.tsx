@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getUser, db, updateUserSplit } from '@/lib/db'
 import { hasGeminiApiKey, saveGeminiApiKey } from '@/lib/ai'
+import {
+  isSupabaseConfigured,
+  subscribeSyncState,
+  processSyncQueue,
+  migrateLocalDataToSupabase,
+  isMigrated,
+} from '@/lib/sync'
+import type { SyncState } from '@/lib/sync'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils/cn'
 import type { User, SplitType, TrainingDays } from '@/types'
@@ -40,9 +48,24 @@ export function SettingsPage() {
   const [showSplitConfirm, setShowSplitConfirm] = useState(false)
   const [pendingSplitType, setPendingSplitType] = useState<SplitType | null>(null)
 
+  // Sync state
+  const [syncState, setSyncState] = useState<SyncState>({
+    status: 'idle',
+    pendingCount: 0,
+    lastSyncAt: null,
+    lastError: null,
+    isMigrated: false,
+  })
+  const [isMigrating, setIsMigrating] = useState(false)
+  const [migrationError, setMigrationError] = useState<string | null>(null)
+
   useEffect(() => {
     loadUser()
     setHasApiKey(hasGeminiApiKey())
+
+    // Subscribe to sync state changes
+    const unsubscribe = subscribeSyncState(setSyncState)
+    return () => unsubscribe()
   }, [])
 
   const loadUser = async () => {
@@ -120,6 +143,40 @@ export function SettingsPage() {
   const cancelSplitChange = () => {
     setShowSplitConfirm(false)
     setPendingSplitType(null)
+  }
+
+  const handleSyncNow = async () => {
+    await processSyncQueue()
+  }
+
+  const handleMigrate = async () => {
+    setIsMigrating(true)
+    setMigrationError(null)
+
+    const result = await migrateLocalDataToSupabase()
+
+    setIsMigrating(false)
+    if (!result.success) {
+      setMigrationError(result.error || 'Ismeretlen hiba')
+    }
+  }
+
+  const getSyncStatusText = () => {
+    if (!isSupabaseConfigured()) return 'Nincs beállítva'
+    if (syncState.status === 'offline') return 'Offline'
+    if (syncState.status === 'syncing') return 'Szinkronizálás...'
+    if (syncState.status === 'error') return 'Hiba'
+    if (syncState.pendingCount > 0) return `${syncState.pendingCount} függőben`
+    return 'Szinkronizálva'
+  }
+
+  const getSyncStatusColor = () => {
+    if (!isSupabaseConfigured()) return 'text-text-muted'
+    if (syncState.status === 'offline') return 'text-yellow-500'
+    if (syncState.status === 'syncing') return 'text-accent'
+    if (syncState.status === 'error') return 'text-red-500'
+    if (syncState.pendingCount > 0) return 'text-yellow-500'
+    return 'text-green-500'
   }
 
   const trainingDaysCount = user?.trainingDays
@@ -299,6 +356,75 @@ export function SettingsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cloud Sync Section */}
+      {isSupabaseConfigured() && (
+        <section className="px-5 py-4 border-b border-text-muted/10">
+          <h2 className="text-2xs font-display uppercase tracking-wider text-text-muted mb-4">
+            Felhő szinkron
+          </h2>
+
+          <div className="p-4 bg-bg-secondary border border-text-muted/20">
+            {/* Sync Status */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-2xs font-display uppercase tracking-wider text-text-muted">
+                  Állapot
+                </p>
+                <p className={`font-display text-lg ${getSyncStatusColor()}`}>
+                  {getSyncStatusText()}
+                </p>
+              </div>
+              <button
+                onClick={handleSyncNow}
+                disabled={syncState.status === 'syncing' || syncState.status === 'offline'}
+                className="px-3 py-1.5 border border-text-muted/30 text-text-muted text-2xs font-display uppercase tracking-wider hover:border-accent hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {syncState.status === 'syncing' ? 'SZINKRON...' : 'SZINKRON'}
+              </button>
+            </div>
+
+            {/* Last Sync Time */}
+            {syncState.lastSyncAt && (
+              <p className="text-2xs text-text-muted mb-3">
+                Utolsó szinkron:{' '}
+                {new Date(syncState.lastSyncAt).toLocaleString('hu-HU', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </p>
+            )}
+
+            {/* Migration */}
+            {!syncState.isMigrated && !isMigrated() && (
+              <div className="pt-3 border-t border-text-muted/20">
+                <p className="text-2xs text-text-muted mb-3">
+                  Meglévő adataid még nincsenek feltöltve a felhőbe.
+                </p>
+                <Button
+                  onClick={handleMigrate}
+                  disabled={isMigrating}
+                  className="w-full"
+                >
+                  {isMigrating ? 'FELTÖLTÉS...' : 'ADATOK FELTÖLTÉSE'}
+                </Button>
+                {migrationError && (
+                  <p className="text-2xs text-red-500 mt-2">{migrationError}</p>
+                )}
+              </div>
+            )}
+
+            {/* Sync Error */}
+            {syncState.lastError && (
+              <p className="text-2xs text-red-500 mt-2">
+                Hiba: {syncState.lastError}
+              </p>
+            )}
+          </div>
+        </section>
       )}
 
       {/* Coach Bebi Section */}

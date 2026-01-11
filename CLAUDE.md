@@ -6,6 +6,7 @@ GoonAndGain is a **Hungarian-language PWA gym planner** for intermediate lifters
 **Key Documents:**
 - [PRD.md](PRD.md) - Full product requirements (read this for feature details)
 - [DESIGN.md](DESIGN.md) - Design philosophy (brutalist, industrial aesthetic)
+- [supabase/SUPABASE.md](supabase/SUPABASE.md) - Cloud sync setup and architecture
 
 ---
 
@@ -13,6 +14,7 @@ GoonAndGain is a **Hungarian-language PWA gym planner** for intermediate lifters
 - **Framework:** React 18 + TypeScript + Vite
 - **Styling:** Tailwind CSS (brutalist design - NO rounded corners)
 - **State:** Zustand (session state) + Dexie.js (IndexedDB)
+- **Cloud Sync:** Supabase (optional - for cloud backup)
 - **AI:** Gemini 3 Flash (`gemini-3-flash-preview`) - user provides API key
 - **Animations:** Framer Motion
 - **PWA:** vite-plugin-pwa
@@ -43,6 +45,7 @@ src/
 │   └── Settings/           # User settings (DONE)
 ├── lib/
 │   ├── db/                 # Dexie database (schema + session/set helpers)
+│   ├── sync/               # Supabase cloud sync (DONE)
 │   ├── ai/                 # Coach Bebi integration (DONE)
 │   ├── workout/            # Progressive overload engine (DONE)
 │   └── utils/              # cn() helper for classnames
@@ -245,6 +248,13 @@ See PRD.md Appendix A for full translation reference.
 - [x] Exercise info access from workout overview
 - [x] Viewport-aware InfoTooltip component
 - [x] Improved input placeholder styling
+
+### Completed (Phase 6)
+- [x] Supabase cloud sync infrastructure
+- [x] Sync queue with background processing
+- [x] Data migration from local to cloud
+- [x] Cloud sync UI in Settings page
+- [x] Online/offline status handling
 
 ---
 
