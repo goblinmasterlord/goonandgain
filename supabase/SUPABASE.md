@@ -29,11 +29,14 @@ GoonAndGain uses Supabase as an optional cloud backup for user data. The app rem
 1. Go to [supabase.com](https://supabase.com) and create a free project
 2. Wait for initialization (~2 minutes)
 
-### 2. Run Database Migration
+### 2. Run Database Migrations
 
 1. In Supabase dashboard, go to **SQL Editor**
-2. Copy contents of `supabase/migrations/001_initial_schema.sql`
-3. Paste and click **Run**
+2. Run migrations in order:
+   - `supabase/migrations/001_initial_schema.sql` - Initial tables
+   - `supabase/migrations/002_profile_recovery.sql` - Profile recovery system (names, PINs)
+
+Note: The profile recovery migration enables `pgcrypto` extension for bcrypt PIN hashing.
 
 ### 3. Get Credentials
 
@@ -57,12 +60,21 @@ VITE_SUPABASE_ANON_KEY=sb_publishable_xxxxx
 
 | Table | Description |
 |-------|-------------|
-| `users` | User profile (weight, gender, training days) |
+| `users` | User profile (weight, gender, training days, profile_name, recovery_pin_hash) |
 | `weight_history` | Weight tracking history |
 | `sessions` | Workout sessions |
-| `set_logs` | Individual set records |
+| `set_logs` | Individual set records (weight, reps, RIR 0-4, is_max_attempt) |
 | `estimated_maxes` | 1RM history per exercise |
 | `ai_feedback` | AI coaching responses |
+
+### Profile Recovery Fields (users table)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `profile_name` | TEXT | Globally unique profile name (case-insensitive) |
+| `recovery_pin_hash` | TEXT | bcrypt-hashed 4-digit PIN |
+| `split_type` | TEXT | Training split type (bro-split, ppl) |
+| `last_active_at` | TIMESTAMPTZ | Auto-updated when completing sessions |
 
 ### Tables NOT Synced (Static Data)
 
@@ -78,10 +90,11 @@ VITE_SUPABASE_ANON_KEY=sb_publishable_xxxxx
 ```
 src/lib/sync/
 ├── index.ts           # Module exports
-├── types.ts           # Type definitions (SyncQueueItem, SyncState)
+├── types.ts           # Type definitions (SyncQueueItem, SyncState, RecoveryResult)
 ├── supabaseClient.ts  # Supabase client initialization
 ├── syncService.ts     # Sync queue management
-└── migration.ts       # Local-to-cloud data migration
+├── migration.ts       # Local-to-cloud data migration
+└── recovery.ts        # Profile recovery functions
 ```
 
 ### Key Functions
@@ -101,6 +114,13 @@ migrateLocalDataToSupabase(): Promise<MigrationResult>
 
 // Subscribe to sync state changes (for UI)
 subscribeSyncState(listener): () => void
+
+// Profile Recovery Functions
+checkProfileNameAvailable(name): Promise<boolean>
+registerProfile(userId, profileName, pin): Promise<boolean>
+verifyRecovery(profileName, pin): Promise<RecoveryResult | null>
+restoreFromCloud(cloudUser): Promise<void>
+changeRecoveryPin(userId, currentPin, newPin): Promise<boolean>
 ```
 
 ### Sync State
@@ -137,9 +157,21 @@ All writes go to Dexie first, then queue for Supabase:
 // Example: After logging a set
 await db.setLogs.add(setLog)  // Instant local write
 queueSync('set_logs', 'insert', setLog.id, setLog)  // Queue for cloud
+
+// Example: After editing a set
+await db.setLogs.update(setId, updates)  // Update local
+queueSync('set_logs', 'update', setId, updatedSet)  // Queue for cloud
 ```
 
 The queue is stored in `syncQueue` table (Dexie) and processed in background.
+
+### Supported Actions
+
+| Action | Description |
+|--------|-------------|
+| `insert` | New record created |
+| `update` | Existing record modified (e.g., editing a set) |
+| `delete` | Record removed |
 
 ---
 
@@ -185,6 +217,45 @@ Supabase free tier is generous:
 
 ---
 
+## Profile Recovery
+
+GoonAndGain supports profile-based data recovery without full authentication.
+
+### How It Works
+
+1. During onboarding, users set a **profile name** (globally unique) and **4-digit PIN**
+2. Profile name and hashed PIN are stored in Supabase
+3. If user loses local data, they can recover via profile name + PIN
+
+### Database Functions
+
+The `002_profile_recovery.sql` migration creates these functions:
+
+| Function | Description |
+|----------|-------------|
+| `check_profile_name_available(name)` | Returns true if name is not taken |
+| `register_profile(user_id, name, pin)` | Stores profile with bcrypt-hashed PIN |
+| `verify_recovery(name, pin)` | Verifies credentials, returns user data + stats |
+| `change_recovery_pin(user_id, current, new)` | Changes PIN (requires current PIN) |
+
+### Security Notes
+
+- PINs are hashed using `pgcrypto` extension (bcrypt, cost 8)
+- Plain text PIN is never stored
+- Profile name uniqueness enforced by unique index on `LOWER(profile_name)`
+- `last_active_at` is auto-updated via trigger when completing workouts
+
+### Recovery Flow
+
+1. User enters profile name + PIN on `/recovery` page
+2. Client calls `verify_recovery()` RPC function
+3. If match found → returns user profile + session count + total sets
+4. User confirms → `restoreFromCloud()` fetches all data from Supabase
+5. Data is written to local IndexedDB
+6. User is redirected to home
+
+---
+
 ## Future Enhancements
 
 Not yet implemented:
@@ -193,6 +264,7 @@ Not yet implemented:
 - [ ] User authentication (Supabase Auth)
 - [ ] Real-time sync (Supabase Realtime)
 - [ ] Data export to JSON/CSV
+- [ ] Rate limiting for recovery attempts (Edge Function)
 
 ---
 

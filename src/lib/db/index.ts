@@ -185,6 +185,23 @@ export async function deleteSetLog(id: number): Promise<void> {
   await db.setLogs.delete(id)
 }
 
+export async function updateSetLog(
+  id: number,
+  updates: {
+    weightKg?: number
+    reps?: number
+    rir?: RIR
+    addedWeightKg?: number
+    isMaxAttempt?: boolean
+  }
+): Promise<void> {
+  await db.setLogs.update(id, updates)
+}
+
+export async function getSetLogById(id: number): Promise<SetLog | undefined> {
+  return await db.setLogs.get(id)
+}
+
 export async function getRecentSessions(limit: number = 10): Promise<Session[]> {
   const user = await getUser()
   if (!user) return []

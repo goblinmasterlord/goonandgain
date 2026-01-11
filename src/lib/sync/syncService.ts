@@ -181,16 +181,22 @@ async function syncUser(item: SyncQueueItem, userId: string): Promise<void> {
       birth_year: data.birthYear || null,
       training_days: data.trainingDays || {},
       weight_updated_at: data.weightUpdatedAt,
+      split_type: data.splitType || 'bro-split',
+      profile_name: data.profileName || null,
     })
     if (error) throw error
   } else if (item.action === 'update') {
+    // Build update object with only provided fields
+    const updateData: Record<string, unknown> = {}
+    if (data.currentWeightKg !== undefined) updateData.current_weight_kg = data.currentWeightKg
+    if (data.trainingDays !== undefined) updateData.training_days = data.trainingDays
+    if (data.weightUpdatedAt !== undefined) updateData.weight_updated_at = data.weightUpdatedAt
+    if (data.splitType !== undefined) updateData.split_type = data.splitType
+    if (data.profileName !== undefined) updateData.profile_name = data.profileName
+
     const { error } = await supabase
       .from('users')
-      .update({
-        current_weight_kg: data.currentWeightKg,
-        training_days: data.trainingDays,
-        weight_updated_at: data.weightUpdatedAt,
-      })
+      .update(updateData)
       .eq('id', userId)
     if (error) throw error
   }
@@ -265,9 +271,29 @@ async function syncSetLog(item: SyncQueueItem, userId: string): Promise<void> {
       added_weight_kg: data.addedWeightKg || null,
       reps: data.reps,
       rir: data.rir,
+      is_max_attempt: data.isMaxAttempt || false,
       logged_at: data.loggedAt,
       local_id: item.localId as number,
     })
+    if (error) throw error
+  } else if (item.action === 'update') {
+    // Update existing set log
+    const { error } = await supabase
+      .from('set_logs')
+      .update({
+        weight_kg: data.weightKg,
+        reps: data.reps,
+        rir: data.rir,
+        added_weight_kg: data.addedWeightKg || null,
+        is_max_attempt: data.isMaxAttempt || false,
+      })
+      .eq('local_id', item.localId)
+    if (error) throw error
+  } else if (item.action === 'delete') {
+    const { error } = await supabase
+      .from('set_logs')
+      .delete()
+      .eq('local_id', item.localId)
     if (error) throw error
   }
 }

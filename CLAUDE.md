@@ -35,7 +35,8 @@ src/
 │   ├── pwa/                # OfflineIndicator, InstallPrompt, UpdatePrompt (DONE)
 │   └── weight/             # WeightCheckInPrompt (DONE)
 ├── pages/
-│   ├── Onboarding/         # Welcome, PersonalData, TrainingSetup, Ready
+│   ├── Onboarding/         # Welcome, PersonalData, ProfileSetup, ProgramSelect, TrainingSetup, Ready
+│   ├── Recovery/           # Profile recovery from cloud (DONE)
 │   ├── Home/               # Today's workout overview
 │   ├── Workout/            # Active session with SetLogger (DONE)
 │   ├── Exercises/          # Exercise library + detail page (DONE)
@@ -45,7 +46,7 @@ src/
 │   └── Settings/           # User settings (DONE)
 ├── lib/
 │   ├── db/                 # Dexie database (schema + session/set helpers)
-│   ├── sync/               # Supabase cloud sync (DONE)
+│   ├── sync/               # Supabase cloud sync + profile recovery (DONE)
 │   ├── ai/                 # Coach Bebi integration (DONE)
 │   ├── workout/            # Progressive overload engine (DONE)
 │   └── utils/              # cn() helper for classnames
@@ -201,7 +202,7 @@ See PRD.md Appendix A for full translation reference.
 - [x] Base UI components (Button, Input, Card)
 - [x] Layout (AppShell, BottomNav)
 - [x] Routing structure
-- [x] Onboarding flow (4 screens)
+- [x] Onboarding flow (5 screens: Personal → Profile → Program → Training → Ready)
 - [x] Home page with template integration
 - [x] Exercise data (chest day - 8 exercises)
 - [x] Workout templates (chest day template)
@@ -255,6 +256,23 @@ See PRD.md Appendix A for full translation reference.
 - [x] Data migration from local to cloud
 - [x] Cloud sync UI in Settings page
 - [x] Online/offline status handling
+
+### Completed (Phase 7) - Smart Progression & Set Editing
+- [x] RIR 0 option for true failure (couldn't do another rep)
+- [x] Max attempt detection (heavy singles auto-excluded from progression)
+- [x] Working set-based progression (uses median of working sets, not final set)
+- [x] Set editing in History page (tap any set to edit weight/reps/RIR)
+- [x] Mark sets as "Max kísérlet" retroactively
+- [x] Supabase sync support for set updates
+
+### Completed (Phase 8) - Profile Recovery System
+- [x] Profile naming during onboarding (new ProfileSetup screen)
+- [x] 4-digit PIN for recovery verification
+- [x] Globally unique profile names (case-insensitive, Supabase enforced)
+- [x] Recovery page accessible from Welcome screen ("Van már profilom")
+- [x] PIN change functionality in Settings
+- [x] Supabase functions for secure PIN hashing (bcrypt via pgcrypto)
+- [x] Migration 002_profile_recovery.sql
 
 ---
 
@@ -546,16 +564,40 @@ VOLUME_GUIDELINES = {
 
 ## Progressive Overload Engine
 
-The overload engine (`src/lib/workout/overload.ts`) calculates smart weight suggestions:
+The overload engine (`src/lib/workout/overload.ts`) calculates smart weight suggestions.
 
-### Algorithm (from PRD 4.4)
+### Smart Working Set Detection
+
+The algorithm now separates **working sets** from **max attempts**:
+
 ```typescript
-// Based on final set of previous session:
+// A set is detected as a max attempt if:
+// 1. Explicitly marked with isMaxAttempt: true
+// 2. OR: has 1-3 reps AND weight is 15%+ above median of all sets
+
+// Example: 70kg×8, 70kg×8, 70kg×8, 85kg×1
+// The 85kg×1 is detected as max attempt (21% above median, only 1 rep)
+// Progression is based on the 70kg working sets, not the 85kg max attempt
+```
+
+### Algorithm (Enhanced)
+```typescript
+// Based on WORKING SETS (excludes max attempts):
+if (rir === 0) → Reduce 5% ("True failure - unsustainable")
 if (rir <= 1) → Maintain weight ("Near your max")
 if (rir == 2 && reps >= max_rep_range) → +2.5kg compound / +1.25kg isolation ("Progress!")
 if (rir >= 3) → +5kg compound / +2.5kg isolation ("Too easy")
 if (reps < min_rep_range) → -10% weight ("Reduce for form")
 ```
+
+### RIR Scale
+| RIR | Meaning | Hungarian |
+|-----|---------|-----------|
+| **0** | True failure - couldn't do another rep | Kimerülés |
+| **1** | Could do 1 more rep | Majdnem max |
+| **2** | Ideal training intensity | Ideális |
+| **3** | Too easy | Könnyű |
+| **4+** | Way too easy | Túl könnyű |
 
 ### 1RM Calculation (Brzycki Formula)
 ```typescript
@@ -565,20 +607,64 @@ if (reps < min_rep_range) → -10% weight ("Reduce for form")
 ### Key Functions
 - `calculate1RM(weight, reps)` - Estimate 1 rep max
 - `roundToIncrement(weight, increment)` - Round to nearest 2.5kg
-- `analyzeLastSession(sets)` - Get analysis from previous session
-- `calculateOverloadSuggestion(exercise, lastSets, repMin, repMax)` - Get suggestion
-- `formatLastSessionDisplay(sets)` - Format for display
+- `isMaxAttemptSet(set, allSets)` - Detect if set is a heavy single/max attempt
+- `analyzeLastSession(sets)` - Get analysis from previous session (separates working sets from max attempts)
+- `calculateOverloadSuggestion(exercise, lastSets, repMin, repMax)` - Get suggestion based on working sets
+- `formatLastSessionDisplay(sets)` - Format for display (shows max attempt 1RM if present)
+
+### Analysis Data Structure
+```typescript
+interface LastSessionAnalysis {
+  // Working sets (used for progression)
+  workingSetWeight: number  // Median weight
+  workingSetReps: number    // Median reps
+  workingSetRir: number     // Median RIR
+  workingSetsCount: number
+
+  // Max attempt tracking
+  hasMaxAttempt: boolean
+  maxAttempt1RM: number | null
+
+  // Legacy/display fields
+  avgWeight, avgReps, avgRir, totalSets, estimated1RM
+}
+```
 
 ### Suggestion Types
 - `progress` - Ready to add weight (green)
 - `maintain` - Hold current weight (accent)
 - `easy` - Weight was too light (yellow)
-- `reduce` - Failed to hit rep target (red)
+- `reduce` - Failed to hit rep target OR RIR 0 (red)
 
 ### Database Helpers
 - `saveEstimatedMax(exerciseId, estimated1RM)` - Save new 1RM
 - `getLatestEstimatedMax(exerciseId)` - Get most recent 1RM
 - `getEstimatedMaxHistory(exerciseId, limit)` - Get 1RM history
+
+---
+
+## Set Editing
+
+Users can edit any logged set from the History page.
+
+### How to Edit
+1. Go to **Előzmények** (History) tab
+2. Tap on a session to view details
+3. Tap any set row to open the edit modal
+4. Modify weight, reps, RIR, or mark as max attempt
+5. Tap **MENTÉS** to save
+
+### SetEditModal Component (`src/components/workout/SetEditModal.tsx`)
+- Full-screen modal with brutalist design
+- Weight input with quick adjust buttons (±2.5, ±5)
+- RIR selector (0-4) with color coding
+- "Max kísérlet" toggle checkbox
+- Changes synced to Supabase automatically
+
+### Database Functions
+- `updateSetLog(id, updates)` - Update set in IndexedDB
+- `getSetLogById(id)` - Retrieve set for sync
+- `queueSync('set_logs', 'update', ...)` - Queue for Supabase sync
 
 ---
 
@@ -691,19 +777,31 @@ The Settings page (`src/pages/Settings/index.tsx`) manages user profile and app 
    - Weight editing with history tracking (saves to `weightHistory` table)
    - Gender display (read-only)
    - Training days count
+   - Profile name display (if set)
+   - Recovery PIN management (change PIN)
 
-2. **Coach Bebi**
+2. **Edzésprogram (Training Program)**
+   - Split type selector (Bro Split / PPL)
+   - Confirmation modal on change
+
+3. **Felhő szinkron (Cloud Sync)** - If Supabase configured
+   - Sync status display
+   - Manual sync button
+   - Data migration button (first-time upload)
+
+4. **Coach Bebi**
    - Gemini API key management (add/remove)
    - Key stored in localStorage
 
-3. **Alkalmazás (App)**
-   - Version display
+5. **Alkalmazás (App)**
+   - Version display (5-tap easter egg to Dev page)
    - About text
 
 ### Features
 - Inline editing pattern (expand/collapse)
 - Weight changes logged to database history
 - Masked API key display ("••••••••••••")
+- PIN change modal with current/new/confirm inputs
 
 ---
 
@@ -753,12 +851,85 @@ The app uses React Router with route guards and context for auth state (`src/App
 ### Router Creation
 **IMPORTANT:** The router is created ONCE outside the App component to prevent re-creation on state changes. Route guards read from context to handle conditional rendering.
 
-### Onboarding Flow
+### Onboarding Flow (5 steps)
+The onboarding flow now includes profile setup for cloud recovery:
+
+1. **Welcome** (`/onboarding`) - App intro, "Van már profilom" recovery link
+2. **Personal Data** (`/onboarding/personal`) - Weight, gender, age
+3. **Profile Setup** (`/onboarding/profile`) - Profile name + 4-digit PIN (optional if offline)
+4. **Program Select** (`/onboarding/program`) - Bro Split or PPL
+5. **Training Setup** (`/onboarding/training`) - Weekly schedule
+6. **Ready** (`/onboarding/ready`) - Confirmation, saves to IndexedDB + Supabase
+
 When onboarding completes (`Ready.tsx`):
 1. User is saved to IndexedDB
-2. `onboarding-complete` custom event is dispatched
-3. App component listens and calls `recheckUser()`
-4. Route guards re-evaluate and redirect to home
+2. If Supabase configured + online + has profile name/PIN:
+   - Migrate user data to Supabase
+   - Register profile with hashed PIN
+3. `onboarding-complete` custom event is dispatched
+4. App component listens and calls `recheckUser()`
+5. Route guards re-evaluate and redirect to home
+
+---
+
+## Profile Recovery System
+
+Allows users to recover their data on a new device or after losing local storage.
+
+### How It Works
+
+1. **During Onboarding** - User sets a globally unique profile name + 4-digit PIN
+2. **Cloud Storage** - Profile name and hashed PIN stored in Supabase
+3. **Recovery** - User enters profile name + PIN to restore data
+
+### Recovery Flow (`/recovery`)
+
+Entry point: "Van már profilom" link on Welcome page
+
+**Steps:**
+1. Enter profile name and PIN
+2. System verifies credentials via `verify_recovery()` Supabase function
+3. If match found → shows profile summary (session count, total sets, dates)
+4. User confirms → data restored locally from cloud
+5. Navigate to home
+
+**Error states:**
+- "Nem található ilyen profil" (no match)
+- "Hibás PIN" (wrong PIN)
+- "Nincs internetkapcsolat" (offline)
+
+### Security
+
+- PIN is hashed server-side using `pgcrypto` (bcrypt, cost 8)
+- PIN never stored locally or in plain text after initial registration
+- Profile name uniqueness enforced by database constraint (case-insensitive)
+- No rate limiting in v1 (consider adding Edge Function later)
+
+### Key Files
+
+- `src/lib/sync/recovery.ts` - Recovery functions
+- `src/pages/Recovery/index.tsx` - Recovery page UI
+- `src/pages/Onboarding/ProfileSetup.tsx` - Profile setup during onboarding
+- `supabase/migrations/002_profile_recovery.sql` - Database functions
+
+### Recovery Functions (`src/lib/sync/recovery.ts`)
+
+```typescript
+// Check if profile name is available
+checkProfileNameAvailable(name: string): Promise<boolean>
+
+// Register profile with hashed PIN
+registerProfile(userId: string, profileName: string, pin: string): Promise<boolean>
+
+// Verify credentials and get user data
+verifyRecovery(profileName: string, pin: string): Promise<RecoveryResult | null>
+
+// Restore all user data from cloud to local IndexedDB
+restoreFromCloud(cloudUser: RecoveryResult): Promise<void>
+
+// Change PIN (requires current PIN verification)
+changeRecoveryPin(userId: string, currentPin: string, newPin: string): Promise<boolean>
+```
 
 ---
 

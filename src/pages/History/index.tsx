@@ -10,7 +10,9 @@ import {
 } from '@/lib/db'
 import { getTemplateById, getExerciseById, muscleGroups } from '@/data'
 import { Button } from '@/components/ui'
+import { SetEditModal } from '@/components/workout/SetEditModal'
 import { cn } from '@/lib/utils/cn'
+import type { SetLog } from '@/types'
 
 export function HistoryPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([])
@@ -219,16 +221,20 @@ function EmptyState() {
 interface SessionDetailModalProps {
   session: SessionWithSets
   onClose: () => void
+  onSetUpdated?: (updatedSet: SetLog) => void
 }
 
-function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
+function SessionDetailModal({ session, onClose, onSetUpdated }: SessionDetailModalProps) {
+  const [editingSet, setEditingSet] = useState<SetLog | null>(null)
+  const [localSets, setLocalSets] = useState(session.sets)
+
   const template = getTemplateById(session.templateId)
   const muscleColor = template
     ? muscleGroups.find((m) => m.id === template.muscleFocus)?.color
     : '#8a8a8a'
 
   // Group sets by exercise
-  const setsByExercise = session.sets.reduce(
+  const setsByExercise = localSets.reduce(
     (acc, set) => {
       if (!acc[set.exerciseId]) {
         acc[set.exerciseId] = []
@@ -236,7 +242,7 @@ function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
       acc[set.exerciseId].push(set)
       return acc
     },
-    {} as Record<string, typeof session.sets>
+    {} as Record<string, typeof localSets>
   )
 
   const duration = session.completedAt
@@ -244,6 +250,13 @@ function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
         (new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime()) / 60000
       )
     : 0
+
+  const handleSetSaved = (updatedSet: SetLog) => {
+    // Update local state
+    setLocalSets(prev => prev.map(s => s.id === updatedSet.id ? updatedSet : s))
+    setEditingSet(null)
+    onSetUpdated?.(updatedSet)
+  }
 
   return (
     <div className="fixed inset-0 bg-bg-primary z-50 overflow-auto">
@@ -284,7 +297,7 @@ function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
       <div className="px-5 py-4 border-b border-text-muted/10 bg-bg-secondary/50">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="font-mono text-2xl font-bold text-accent">{session.sets.length}</p>
+            <p className="font-mono text-2xl font-bold text-accent">{localSets.length}</p>
             <p className="text-2xs font-display uppercase tracking-wider text-text-muted">
               Sorozat
             </p>
@@ -302,6 +315,13 @@ function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
             <p className="text-2xs font-display uppercase tracking-wider text-text-muted">Perc</p>
           </div>
         </div>
+      </div>
+
+      {/* Edit hint */}
+      <div className="px-5 py-2 bg-bg-elevated/50 border-b border-text-muted/10">
+        <p className="text-2xs text-text-muted text-center">
+          Koppints egy sorozatra a szerkesztéshez
+        </p>
       </div>
 
       {/* Exercises */}
@@ -326,9 +346,10 @@ function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
 
               <div className="space-y-2">
                 {sets.map((set, index) => (
-                  <div
+                  <button
                     key={set.id}
-                    className="flex items-center gap-4 p-3 bg-bg-secondary border border-text-muted/10"
+                    onClick={() => setEditingSet(set)}
+                    className="w-full flex items-center gap-4 p-3 bg-bg-secondary border border-text-muted/10 hover:border-accent/50 transition-colors"
                   >
                     <span className="font-mono text-lg text-text-muted w-8">
                       {(index + 1).toString().padStart(2, '0')}
@@ -344,25 +365,51 @@ function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
                         <span className="text-text-muted text-sm">rep</span>
                       </span>
                     </div>
+                    {set.isMaxAttempt && (
+                      <span className="px-2 py-0.5 border border-warning/50 text-warning text-2xs font-display uppercase tracking-wider">
+                        MAX
+                      </span>
+                    )}
                     <div
                       className={cn(
                         'px-2 py-1 border text-sm font-mono',
-                        set.rir <= 1
-                          ? 'border-danger/50 text-danger'
-                          : set.rir === 2
-                            ? 'border-accent/50 text-accent'
-                            : 'border-text-muted/30 text-text-muted'
+                        set.rir === 0
+                          ? 'border-danger text-danger font-bold'
+                          : set.rir === 1
+                            ? 'border-danger/50 text-danger'
+                            : set.rir === 2
+                              ? 'border-accent/50 text-accent'
+                              : 'border-text-muted/30 text-text-muted'
                       )}
                     >
                       RIR {set.rir === 4 ? '4+' : set.rir}
                     </div>
-                  </div>
+                    <svg
+                      className="w-4 h-4 text-text-muted"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="square" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
                 ))}
               </div>
             </div>
           )
         })}
       </div>
+
+      {/* Set Edit Modal */}
+      {editingSet && (
+        <SetEditModal
+          set={editingSet}
+          exerciseName={getExerciseById(editingSet.exerciseId)?.nameHu || editingSet.exerciseId}
+          onClose={() => setEditingSet(null)}
+          onSave={handleSetSaved}
+        />
+      )}
     </div>
   )
 }

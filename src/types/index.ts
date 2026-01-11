@@ -1,6 +1,9 @@
 // Split types
 export type SplitType = 'bro-split' | 'ppl'
 
+// Coach avatar types
+export type CoachAvatar = 'bebi' | 'marci'
+
 // User types
 export interface User {
   id: string
@@ -11,6 +14,8 @@ export interface User {
   splitType: SplitType
   trainingDays: TrainingDays
   weightUpdatedAt: Date
+  profileName?: string // Globally unique name for profile recovery
+  coachAvatar?: CoachAvatar // Selected coach avatar for workout screens (default: bebi)
 }
 
 export interface TrainingDays {
@@ -113,10 +118,16 @@ export interface SetLog {
   addedWeightKg?: number
   reps: number
   rir: RIR
+  isMaxAttempt?: boolean // Heavy single/max attempt - excluded from progression algorithm
   loggedAt: Date
 }
 
-export type RIR = 1 | 2 | 3 | 4
+// RIR 0 = true failure (couldn't do another rep)
+// RIR 1 = could do 1 more
+// RIR 2 = ideal training intensity
+// RIR 3 = too easy, increase weight
+// RIR 4+ = way too easy
+export type RIR = 0 | 1 | 2 | 3 | 4
 
 // AI types
 export interface AIFeedback {

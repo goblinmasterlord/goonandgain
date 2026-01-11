@@ -80,9 +80,9 @@ export function SetLogger() {
     return formatLastSessionDisplay(lastSessionSets)
   }, [lastSessionSets])
 
-  const canLogSet = weightInput && repsInput && rirInput
+  const canLogSet = weightInput && repsInput && rirInput !== null
 
-  const rirOptions: RIR[] = [1, 2, 3, 4]
+  const rirOptions: RIR[] = [0, 1, 2, 3, 4]
 
   return (
     <div className="flex flex-col min-h-screen bg-bg-primary">
@@ -294,6 +294,7 @@ export function SetLogger() {
                     Mennyi ismétlést tudtál volna még megcsinálni a sorozat végén?
                   </p>
                   <ul className="space-y-1 text-xs">
+                    <li><span className="font-mono text-danger font-bold">RIR 0</span> = Kimerülés, nem ment volna több</li>
                     <li><span className="font-mono text-danger">RIR 1</span> = Majdnem max, 1 maradt</li>
                     <li><span className="font-mono text-accent">RIR 2</span> = Ideális edzésintenzitás</li>
                     <li><span className="font-mono text-warning">RIR 3</span> = Könnyű, növelj súlyt</li>
@@ -303,7 +304,7 @@ export function SetLogger() {
               }
             />
           </div>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {rirOptions.map((rir) => (
               <button
                 key={rir}
@@ -311,8 +312,12 @@ export function SetLogger() {
                 className={cn(
                   'py-4 border-2 font-mono text-xl font-bold transition-all duration-100',
                   rirInput === rir
-                    ? 'border-accent bg-accent text-bg-primary shadow-harsh'
-                    : 'border-text-muted/30 text-text-secondary hover:border-accent hover:text-accent'
+                    ? rir === 0
+                      ? 'border-danger bg-danger text-white shadow-harsh'
+                      : 'border-accent bg-accent text-bg-primary shadow-harsh'
+                    : rir === 0
+                      ? 'border-danger/50 text-danger hover:border-danger hover:bg-danger/10'
+                      : 'border-text-muted/30 text-text-secondary hover:border-accent hover:text-accent'
                 )}
               >
                 {rir === 4 ? '4+' : rir}
@@ -320,6 +325,7 @@ export function SetLogger() {
             ))}
           </div>
           <p className="text-2xs text-text-muted mt-2 text-center">
+            {rirInput === 0 && 'Teljes kimerülés - nem ment volna több sehogy sem'}
             {rirInput === 1 && 'Nagyon nehéz volt, alig bírtad volna még egyet'}
             {rirInput === 2 && 'Ideális - még 2 bírt volna menni'}
             {rirInput === 3 && 'Könnyen ment, növelj súlyt!'}
