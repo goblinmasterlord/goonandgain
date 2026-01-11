@@ -8,11 +8,14 @@ import {
   processSyncQueue,
   migrateLocalDataToSupabase,
   isMigrated,
+  changeRecoveryPin,
+  isOnline,
 } from '@/lib/sync'
 import type { SyncState } from '@/lib/sync'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils/cn'
-import type { User, SplitType, TrainingDays } from '@/types'
+import { getAvatarPath, COACH_NAMES, getAvailableCoaches } from '@/lib/utils/avatar'
+import type { User, SplitType, TrainingDays, CoachAvatar } from '@/types'
 
 // Default schedules for each split type
 const BRO_SPLIT_DEFAULT: TrainingDays = {
@@ -58,6 +61,14 @@ export function SettingsPage() {
   })
   const [isMigrating, setIsMigrating] = useState(false)
   const [migrationError, setMigrationError] = useState<string | null>(null)
+
+  // PIN change state
+  const [showPinChange, setShowPinChange] = useState(false)
+  const [currentPin, setCurrentPin] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [confirmNewPin, setConfirmNewPin] = useState('')
+  const [pinChangeError, setPinChangeError] = useState<string | null>(null)
+  const [isPinChanging, setIsPinChanging] = useState(false)
 
   useEffect(() => {
     loadUser()
@@ -145,6 +156,17 @@ export function SettingsPage() {
     setPendingSplitType(null)
   }
 
+  const handleAvatarChange = async (newAvatar: CoachAvatar) => {
+    if (!user || newAvatar === user.coachAvatar) return
+
+    try {
+      await db.users.update(user.id, { coachAvatar: newAvatar })
+      setUser({ ...user, coachAvatar: newAvatar })
+    } catch (error) {
+      console.error('Failed to update avatar:', error)
+    }
+  }
+
   const handleSyncNow = async () => {
     await processSyncQueue()
   }
@@ -159,6 +181,54 @@ export function SettingsPage() {
     if (!result.success) {
       setMigrationError(result.error || 'Ismeretlen hiba')
     }
+  }
+
+  const handlePinChange = async () => {
+    if (!user) return
+
+    // Validate inputs
+    if (currentPin.length !== 4 || newPin.length !== 4) {
+      setPinChangeError('A PIN-nek 4 számjegyűnek kell lennie')
+      return
+    }
+
+    if (newPin !== confirmNewPin) {
+      setPinChangeError('Az új PIN-ek nem egyeznek')
+      return
+    }
+
+    if (!isOnline()) {
+      setPinChangeError('Nincs internetkapcsolat')
+      return
+    }
+
+    setIsPinChanging(true)
+    setPinChangeError(null)
+
+    try {
+      const success = await changeRecoveryPin(user.id, currentPin, newPin)
+
+      if (success) {
+        setShowPinChange(false)
+        setCurrentPin('')
+        setNewPin('')
+        setConfirmNewPin('')
+      } else {
+        setPinChangeError('Hibás jelenlegi PIN')
+      }
+    } catch (err) {
+      setPinChangeError(err instanceof Error ? err.message : 'Hiba történt')
+    } finally {
+      setIsPinChanging(false)
+    }
+  }
+
+  const closePinChangeModal = () => {
+    setShowPinChange(false)
+    setCurrentPin('')
+    setNewPin('')
+    setConfirmNewPin('')
+    setPinChangeError(null)
   }
 
   const getSyncStatusText = () => {
@@ -255,7 +325,7 @@ export function SettingsPage() {
         </div>
 
         {/* Training Days */}
-        <div className="p-4 bg-bg-secondary border border-text-muted/20">
+        <div className="p-4 bg-bg-secondary border border-text-muted/20 mb-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-2xs font-display uppercase tracking-wider text-text-muted">
@@ -267,6 +337,44 @@ export function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Profile Name */}
+        {user?.profileName && (
+          <div className="p-4 bg-bg-secondary border border-text-muted/20 mb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xs font-display uppercase tracking-wider text-text-muted">
+                  Profilnév
+                </p>
+                <p className="font-display text-lg text-accent font-bold">
+                  {user.profileName}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recovery PIN Management */}
+        {user?.profileName && isSupabaseConfigured() && (
+          <div className="p-4 bg-bg-secondary border border-text-muted/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xs font-display uppercase tracking-wider text-text-muted">
+                  Visszaállítási PIN
+                </p>
+                <p className="font-display text-lg text-text-primary">
+                  ••••
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPinChange(true)}
+                className="px-3 py-1.5 border border-text-muted/30 text-text-muted text-2xs font-display uppercase tracking-wider hover:border-accent hover:text-accent transition-colors"
+              >
+                MÓDOSÍT
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Training Program Section */}
@@ -332,6 +440,52 @@ export function SettingsPage() {
         </div>
       </section>
 
+      {/* Coach Avatar Section */}
+      <section className="px-5 py-4 border-b border-text-muted/10">
+        <h2 className="text-2xs font-display uppercase tracking-wider text-text-muted mb-4">
+          Edzés avatar
+        </h2>
+
+        <div className="p-4 bg-bg-secondary border border-text-muted/20">
+          <p className="text-2xs font-display uppercase tracking-wider text-text-muted mb-3">
+            Válassz edzőt az összefoglaló képernyőkhöz
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            {getAvailableCoaches().map((coach) => (
+              <button
+                key={coach}
+                onClick={() => handleAvatarChange(coach)}
+                className={cn(
+                  'p-4 border-2 transition-all flex flex-col items-center',
+                  (user?.coachAvatar ?? 'bebi') === coach
+                    ? 'border-accent bg-accent/10'
+                    : 'border-text-muted/30 hover:border-text-muted/50'
+                )}
+              >
+                <img
+                  src={getAvatarPath(coach, 'default')}
+                  alt={COACH_NAMES[coach]}
+                  className="w-20 h-20 object-contain mb-2"
+                />
+                <p className={cn(
+                  'font-display text-sm font-bold uppercase tracking-wide',
+                  (user?.coachAvatar ?? 'bebi') === coach ? 'text-accent' : 'text-text-primary'
+                )}>
+                  {COACH_NAMES[coach]}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <p className="text-2xs text-text-muted mt-3 text-center">
+            Aktív: <span className="text-accent font-bold">
+              {COACH_NAMES[user?.coachAvatar ?? 'bebi']}
+            </span>
+          </p>
+        </div>
+      </section>
+
       {/* Split Change Confirmation Modal */}
       {showSplitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
@@ -352,6 +506,98 @@ export function SettingsPage() {
               </Button>
               <Button onClick={confirmSplitChange}>
                 VÁLTÁS
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PIN Change Modal */}
+      {showPinChange && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className="w-full max-w-sm bg-bg-secondary border-2 border-text-muted/30 p-6">
+            <h3 className="font-display text-lg font-bold uppercase tracking-wide text-text-primary mb-2">
+              PIN megváltoztatása
+            </h3>
+            <p className="text-text-secondary text-sm mb-4">
+              Add meg a jelenlegi és az új PIN kódodat
+            </p>
+
+            <div className="space-y-4 mb-4">
+              <div>
+                <label className="text-2xs font-display uppercase tracking-wider text-text-muted block mb-2">
+                  Jelenlegi PIN
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={currentPin}
+                  onChange={(e) => {
+                    const filtered = e.target.value.replace(/\D/g, '').slice(0, 4)
+                    setCurrentPin(filtered)
+                    setPinChangeError(null)
+                  }}
+                  className="w-full p-3 bg-bg-elevated border border-text-muted/30 font-mono text-lg text-text-primary text-center tracking-[0.5em] focus:border-accent focus:outline-none"
+                  placeholder="••••"
+                />
+              </div>
+
+              <div>
+                <label className="text-2xs font-display uppercase tracking-wider text-text-muted block mb-2">
+                  Új PIN
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={newPin}
+                  onChange={(e) => {
+                    const filtered = e.target.value.replace(/\D/g, '').slice(0, 4)
+                    setNewPin(filtered)
+                    setPinChangeError(null)
+                  }}
+                  className="w-full p-3 bg-bg-elevated border border-text-muted/30 font-mono text-lg text-text-primary text-center tracking-[0.5em] focus:border-accent focus:outline-none"
+                  placeholder="••••"
+                />
+              </div>
+
+              <div>
+                <label className="text-2xs font-display uppercase tracking-wider text-text-muted block mb-2">
+                  Új PIN megerősítése
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={confirmNewPin}
+                  onChange={(e) => {
+                    const filtered = e.target.value.replace(/\D/g, '').slice(0, 4)
+                    setConfirmNewPin(filtered)
+                    setPinChangeError(null)
+                  }}
+                  className="w-full p-3 bg-bg-elevated border border-text-muted/30 font-mono text-lg text-text-primary text-center tracking-[0.5em] focus:border-accent focus:outline-none"
+                  placeholder="••••"
+                />
+              </div>
+            </div>
+
+            {pinChangeError && (
+              <p className="text-sm text-danger mb-4">{pinChangeError}</p>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="ghost" onClick={closePinChangeModal} disabled={isPinChanging}>
+                MÉGSE
+              </Button>
+              <Button
+                onClick={handlePinChange}
+                disabled={isPinChanging || currentPin.length !== 4 || newPin.length !== 4 || confirmNewPin.length !== 4}
+              >
+                {isPinChanging ? 'MENTÉS...' : 'MENTÉS'}
               </Button>
             </div>
           </div>
@@ -506,7 +752,7 @@ export function SettingsPage() {
           >
             <span className="font-display text-text-primary">Verzió</span>
             <span className="font-mono text-text-muted">
-              1.0.0{devTapCount > 0 && devTapCount < 5 && ` (${5 - devTapCount})`}
+              1.3.0{devTapCount > 0 && devTapCount < 5 && ` (${5 - devTapCount})`}
             </span>
           </button>
 

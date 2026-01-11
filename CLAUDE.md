@@ -274,6 +274,14 @@ See PRD.md Appendix A for full translation reference.
 - [x] Supabase functions for secure PIN hashing (bcrypt via pgcrypto)
 - [x] Migration 002_profile_recovery.sql
 
+### Completed (Phase 9) - Coach Avatar Selection
+- [x] CoachAvatar type (`'bebi' | 'marci'`) in User interface
+- [x] Avatar utility module (`src/lib/utils/avatar.ts`)
+- [x] Avatar selector UI in Settings ("Edzés avatar" section)
+- [x] WorkoutSummary uses selected avatar
+- [x] ExerciseTransition uses selected avatar
+- [x] Coach Bebi chat unchanged (only workout screens use selected avatar)
+
 ---
 
 ## Commands
@@ -469,18 +477,42 @@ function analyzeWorkout(completedSets, totalExpectedSets) {
 - `dismissExerciseTransition()` - Advance to next exercise
 - `dismissWorkoutSummary()` - Complete and exit workout
 
-### Coach Bebi Avatar Images
+### Coach Avatar System
 
-Mood-specific avatar images in `/public/`:
+Users can select their preferred coach avatar in Settings. The selected avatar appears on workout transition and summary screens.
 
-| File | ExerciseTransition | WorkoutSummary |
-|------|-------------------|----------------|
-| `bebi-proud.png` | excellent (RIR 1-2) | beast (90%+ completion, low RIR) |
-| `bebi-avatar.png` | (default) | good (solid workout) |
-| `bebi-disappointed.png` | tooEasy (RIR 3+) | meh (high RIR or <75% completion) |
-| `bebi-angry.png` | earlyFinish (skipped sets) | short (<50% completion) |
+**Available Coaches:**
+- `bebi` - Coach Bebi (default)
+- `marci` - Coach Marci
 
-The `getBebiMood(category)` function in each component returns the appropriate image path based on performance analysis.
+**Avatar Moods:**
+- `proud` - Excellent performance
+- `default` - Good/normal workout
+- `disappointed` - Too easy (high RIR)
+- `angry` - Skipped sets or short workout
+
+**Avatar Images in `/public/`:**
+
+| Coach | Proud | Default | Disappointed | Angry |
+|-------|-------|---------|--------------|-------|
+| Bebi | `bebi-proud.png` | `bebi-avatar.png` | `bebi-disappointed.png` | `bebi-angry.png` |
+| Marci | `marci-proud.png` | `marci-avatar.png` | `marci-disappointed.png` | `marci-angry.png` |
+
+**Key Functions (`src/lib/utils/avatar.ts`):**
+- `getAvatarPath(coach, mood)` - Returns image path for coach/mood combination
+- `COACH_NAMES` - Display names (Coach Bebi, Coach Marci)
+- `getAvailableCoaches()` - Returns list of available coach options
+
+**Usage in Components:**
+```typescript
+import { getAvatarPath, type AvatarMood } from '@/lib/utils/avatar'
+
+// Get avatar based on user preference and performance
+const mood: AvatarMood = getCategoryMood(performanceCategory)
+const avatarSrc = getAvatarPath(user.coachAvatar ?? 'bebi', mood)
+```
+
+Note: Coach Bebi remains the AI chat coach - only the visual avatar on workout screens is affected by this setting.
 
 ### Layout Structure
 
@@ -784,16 +816,21 @@ The Settings page (`src/pages/Settings/index.tsx`) manages user profile and app 
    - Split type selector (Bro Split / PPL)
    - Confirmation modal on change
 
-3. **Felhő szinkron (Cloud Sync)** - If Supabase configured
+3. **Edzés avatar (Coach Avatar)**
+   - Visual avatar selector (Coach Bebi / Coach Marci)
+   - Shows avatar preview images
+   - Affects transition and summary screens only (not Coach chat)
+
+4. **Felhő szinkron (Cloud Sync)** - If Supabase configured
    - Sync status display
    - Manual sync button
    - Data migration button (first-time upload)
 
-4. **Coach Bebi**
+5. **Coach Bebi**
    - Gemini API key management (add/remove)
    - Key stored in localStorage
 
-5. **Alkalmazás (App)**
+6. **Alkalmazás (App)**
    - Version display (5-tap easter egg to Dev page)
    - About text
 

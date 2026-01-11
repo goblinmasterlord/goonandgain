@@ -2,7 +2,10 @@ import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWorkoutStore } from '@/stores'
 import { getExerciseById, muscleGroups } from '@/data'
+import { getUser } from '@/lib/db'
+import { getAvatarPath, type AvatarMood } from '@/lib/utils/avatar'
 import { Button } from '@/components/ui'
+import type { CoachAvatar } from '@/types'
 
 // Coach Bebi workout completion messages
 const WORKOUT_MESSAGES = {
@@ -86,19 +89,19 @@ function analyzeWorkout(
   return 'good'
 }
 
-// Get Bebi avatar based on mood
-function getBebiMood(category: keyof typeof WORKOUT_MESSAGES): string {
+// Get avatar mood based on workout category
+function getCategoryMood(category: keyof typeof WORKOUT_MESSAGES): AvatarMood {
   switch (category) {
     case 'beast':
-      return '/bebi-proud.png'
+      return 'proud'
     case 'good':
-      return '/bebi-avatar.png' // No happy image available, use default
+      return 'default'
     case 'meh':
-      return '/bebi-disappointed.png'
+      return 'disappointed'
     case 'short':
-      return '/bebi-angry.png'
+      return 'angry'
     default:
-      return '/bebi-avatar.png'
+      return 'default'
   }
 }
 
@@ -158,6 +161,16 @@ export function WorkoutSummary() {
 
   const [message, setMessage] = useState<{ headline: string; text: string; subtext: string } | null>(null)
   const [showStats, setShowStats] = useState(false)
+  const [coachAvatar, setCoachAvatar] = useState<CoachAvatar>('bebi')
+
+  // Load user's avatar preference
+  useEffect(() => {
+    getUser().then((user) => {
+      if (user?.coachAvatar) {
+        setCoachAvatar(user.coachAvatar)
+      }
+    })
+  }, [])
 
   // Calculate totals
   const stats = useMemo(() => {
@@ -239,14 +252,14 @@ export function WorkoutSummary() {
         >
           {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto overscroll-contain">
-            {/* Header with Bebi and headline */}
+            {/* Header with Coach and headline */}
             <motion.div
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.1, duration: 0.3 }}
               className="px-4 pt-4 pb-3 text-center"
             >
-              {/* Coach Bebi avatar */}
+              {/* Coach avatar */}
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -254,8 +267,8 @@ export function WorkoutSummary() {
                 className="mb-2"
               >
                 <img
-                  src={getBebiMood(performanceCategory)}
-                  alt="Coach Bebi"
+                  src={getAvatarPath(coachAvatar, getCategoryMood(performanceCategory))}
+                  alt={coachAvatar === 'marci' ? 'Coach Marci' : 'Coach Bebi'}
                   className="w-40 h-40 object-contain mx-auto"
                 />
               </motion.div>

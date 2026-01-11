@@ -2,6 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui'
 import { db } from '@/lib/db'
+import {
+  isSupabaseConfigured,
+  isOnline,
+  registerProfile,
+  migrateLocalDataToSupabase,
+} from '@/lib/sync'
 
 // Fallback UUID generator for browsers that don't support crypto.randomUUID
 function generateUUID(): string {
@@ -52,6 +58,7 @@ export function ReadyPage() {
         splitType: data.splitType || 'bro-split',
         trainingDays: data.trainingDays || {},
         weightUpdatedAt: new Date(),
+        profileName: data.profileName || undefined,
       })
 
       // Add initial weight history
@@ -60,6 +67,21 @@ export function ReadyPage() {
         weightKg: data.weight || 80,
         recordedAt: new Date(),
       })
+
+      // If Supabase is configured and online, migrate data and register profile
+      if (isSupabaseConfigured() && isOnline() && data.profileName && data.recoveryPin) {
+        try {
+          // First migrate user data to Supabase
+          await migrateLocalDataToSupabase()
+
+          // Then register the profile with PIN
+          await registerProfile(userId, data.profileName, data.recoveryPin)
+          console.info('[Onboarding] Profile registered with Supabase')
+        } catch (syncError) {
+          // Don't fail onboarding if sync fails - it can be done later
+          console.warn('[Onboarding] Cloud sync failed, will retry later:', syncError)
+        }
+      }
 
       // Clear temporary storage
       localStorage.removeItem('onboarding_data')

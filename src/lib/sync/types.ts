@@ -41,6 +41,26 @@ export interface SupabaseUser {
   birth_year: number | null
   training_days: Record<string, string>
   weight_updated_at: string
+  profile_name: string | null
+  recovery_pin_hash: string | null
+  split_type: string | null
+  last_active_at: string | null
+}
+
+// Recovery verification result (from verify_recovery function)
+export interface RecoveryResult {
+  id: string
+  created_at: string
+  current_weight_kg: number
+  gender: 'male' | 'female'
+  birth_year: number | null
+  training_days: Record<string, string>
+  weight_updated_at: string
+  split_type: string | null
+  profile_name: string
+  last_active_at: string | null
+  session_count: number
+  total_sets: number
 }
 
 export interface SupabaseWeightHistory {

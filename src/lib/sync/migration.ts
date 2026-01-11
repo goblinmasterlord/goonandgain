@@ -64,7 +64,7 @@ export async function migrateLocalDataToSupabase(): Promise<MigrationResult> {
 
     console.info('[Migration] Starting migration for user:', user.id)
 
-    // 1. Create user in Supabase
+    // 1. Create user in Supabase (profile_name and PIN are set via registerProfile)
     const { error: userError } = await supabase.from('users').insert({
       id: user.id,
       created_at: user.createdAt.toISOString(),
@@ -73,6 +73,8 @@ export async function migrateLocalDataToSupabase(): Promise<MigrationResult> {
       birth_year: user.birthYear || null,
       training_days: user.trainingDays || {},
       weight_updated_at: user.weightUpdatedAt.toISOString(),
+      split_type: user.splitType || 'bro-split',
+      profile_name: user.profileName || null,
     })
     if (userError) throw userError
     console.info('[Migration] User created')

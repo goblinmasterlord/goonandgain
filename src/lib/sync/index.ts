@@ -24,10 +24,19 @@ export {
   resetMigration,
 } from './migration'
 
+export {
+  checkProfileNameAvailable,
+  registerProfile,
+  verifyRecovery,
+  restoreFromCloud,
+  changeRecoveryPin,
+} from './recovery'
+
 export type {
   SyncQueueItem,
   SyncTable,
   SyncAction,
   SyncState,
   SyncStatus,
+  RecoveryResult,
 } from './types'

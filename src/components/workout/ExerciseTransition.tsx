@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWorkoutStore } from '@/stores'
 import { getExerciseById, muscleGroups } from '@/data'
+import { getUser } from '@/lib/db'
+import { getAvatarPath, type AvatarMood } from '@/lib/utils/avatar'
 import { Button } from '@/components/ui'
+import type { CoachAvatar } from '@/types'
 
 // Coach Bebi exercise completion messages
 const COMPLETION_MESSAGES = {
@@ -69,17 +72,17 @@ function analyzePerformance(
   return avgRir >= 3 ? 'tooEasy' : 'excellent'
 }
 
-// Get Bebi avatar based on mood
-function getBebiMood(category: keyof typeof COMPLETION_MESSAGES): string {
+// Get avatar mood based on performance category
+function getCategoryMood(category: keyof typeof COMPLETION_MESSAGES): AvatarMood {
   switch (category) {
     case 'excellent':
-      return '/bebi-proud.png'
+      return 'proud'
     case 'tooEasy':
-      return '/bebi-disappointed.png'
+      return 'disappointed'
     case 'earlyFinish':
-      return '/bebi-angry.png'
+      return 'angry'
     default:
-      return '/bebi-avatar.png'
+      return 'default'
   }
 }
 
@@ -94,6 +97,16 @@ export function ExerciseTransition() {
 
   const [message, setMessage] = useState<{ text: string; subtext: string } | null>(null)
   const [isExiting, setIsExiting] = useState(false)
+  const [coachAvatar, setCoachAvatar] = useState<CoachAvatar>('bebi')
+
+  // Load user's avatar preference
+  useEffect(() => {
+    getUser().then((user) => {
+      if (user?.coachAvatar) {
+        setCoachAvatar(user.coachAvatar)
+      }
+    })
+  }, [])
 
   // Set message when transition shows + prevent body scroll
   useEffect(() => {
@@ -223,22 +236,22 @@ export function ExerciseTransition() {
               </div>
             </motion.div>
 
-            {/* Middle section - Coach Bebi */}
+            {/* Middle section - Coach */}
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.3 }}
               className="flex flex-col items-center justify-center px-4 py-4"
             >
-              {/* Coach Bebi avatar */}
+              {/* Coach avatar */}
               <motion.div
                 animate={{ y: [0, -5, 0] }}
                 transition={{ delay: 0.4, duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
                 className="mb-2"
               >
                 <img
-                  src={getBebiMood(performanceCategory)}
-                  alt="Coach Bebi"
+                  src={getAvatarPath(coachAvatar, getCategoryMood(performanceCategory))}
+                  alt={coachAvatar === 'marci' ? 'Coach Marci' : 'Coach Bebi'}
                   className="w-48 h-48 object-contain"
                 />
               </motion.div>

@@ -13,10 +13,12 @@ import {
   OnboardingLayout,
   WelcomePage,
   PersonalDataPage,
+  ProfileSetupPage,
   ProgramSelectPage,
   TrainingSetupPage,
   ReadyPage,
 } from '@/pages/Onboarding'
+import { RecoveryPage } from '@/pages/Recovery'
 import { hasUser } from '@/lib/db'
 import { initSupabase, initSyncState, processSyncQueue } from '@/lib/sync'
 
@@ -106,10 +108,15 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <WelcomePage /> },
       { path: 'personal', element: <PersonalDataPage /> },
+      { path: 'profile', element: <ProfileSetupPage /> },
       { path: 'program', element: <ProgramSelectPage /> },
       { path: 'training', element: <TrainingSetupPage /> },
       { path: 'ready', element: <ReadyPage /> },
     ],
+  },
+  {
+    path: '/recovery',
+    element: <RecoveryPage />,
   },
 ])
 

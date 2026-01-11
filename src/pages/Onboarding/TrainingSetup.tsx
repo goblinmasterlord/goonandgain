@@ -93,16 +93,16 @@ export function TrainingSetupPage() {
     <div className="min-h-screen bg-bg-primary">
       {/* Progress bar */}
       <div className="h-1 bg-bg-elevated">
-        <div className="h-full w-3/4 bg-accent" />
+        <div className="h-full w-[80%] bg-accent" />
       </div>
 
       <div className="px-6 py-8">
         {/* Header */}
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <span className="font-mono text-sm text-accent">03</span>
+            <span className="font-mono text-sm text-accent">04</span>
             <div className="flex-1 h-px bg-text-muted/20" />
-            <span className="font-mono text-sm text-text-muted">04</span>
+            <span className="font-mono text-sm text-text-muted">05</span>
           </div>
           <h1 className="font-display text-3xl font-extrabold uppercase tracking-wide mb-2">
             Heti beosztás

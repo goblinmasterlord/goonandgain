@@ -63,11 +63,20 @@ export function WelcomePage() {
         <p className="text-center text-2xs text-text-muted mt-4 font-display uppercase tracking-wider">
           2 perc beállítás
         </p>
+
+        {/* Recovery link */}
+        <button
+          type="button"
+          onClick={() => navigate('/recovery')}
+          className="w-full mt-6 text-center text-sm text-text-muted hover:text-accent transition-colors"
+        >
+          Van már profilom
+        </button>
       </div>
 
       {/* Version badge */}
       <div className="absolute bottom-4 left-6">
-        <span className="text-2xs font-mono text-text-muted">v1.0.0</span>
+        <span className="text-2xs font-mono text-text-muted">v1.3.0</span>
       </div>
     </div>
   )
