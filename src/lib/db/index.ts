@@ -11,6 +11,9 @@ import type {
   RIR,
   SplitType,
   TrainingDays,
+  CustomTemplate,
+  TemplateExercise,
+  WorkoutType,
 } from '@/types'
 import type { SyncQueueItem } from '@/lib/sync/types'
 
@@ -24,6 +27,7 @@ export class GoonAndGainDB extends Dexie {
   aiFeedback!: Table<AIFeedback, number>
   estimatedMaxes!: Table<EstimatedMax, number>
   syncQueue!: Table<SyncQueueItem, number>
+  customTemplates!: Table<CustomTemplate, number>
 
   constructor() {
     super('GoonAndGainDB')
@@ -50,6 +54,20 @@ export class GoonAndGainDB extends Dexie {
       aiFeedback: '++id, userId, type, createdAt',
       estimatedMaxes: '++id, userId, exerciseId, calculatedAt',
       syncQueue: '++id, table, action, syncedAt, createdAt',
+    })
+
+    // Version 3: Add custom templates for user-created workouts
+    this.version(3).stores({
+      users: 'id, createdAt',
+      weightHistory: '++id, userId, recordedAt',
+      exercises: 'id, muscleGroupPrimary, equipment, type',
+      workoutTemplates: 'id, muscleFocus',
+      sessions: '++id, userId, templateId, date, startedAt',
+      setLogs: '++id, sessionId, exerciseId, loggedAt',
+      aiFeedback: '++id, userId, type, createdAt',
+      estimatedMaxes: '++id, userId, exerciseId, calculatedAt',
+      syncQueue: '++id, table, action, syncedAt, createdAt',
+      customTemplates: '++id, odbc, userId, muscleFocus, createdAt',
     })
   }
 }
@@ -500,4 +518,97 @@ export async function getRecentPRs(
     const prDate = new Date(pr.date)
     return prDate >= startDate && prDate < endDate
   })
+}
+
+// ============================================
+// Custom Template CRUD Functions
+// ============================================
+
+// Create a new custom template
+export async function createCustomTemplate(
+  nameHu: string,
+  muscleFocus: WorkoutType,
+  exercises: TemplateExercise[],
+  assignedDays: number[] = []
+): Promise<number> {
+  const user = await getUser()
+  if (!user) throw new Error('No user found')
+
+  const template: CustomTemplate = {
+    userId: user.id,
+    nameHu,
+    muscleFocus,
+    exercises,
+    assignedDays,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+
+  return await db.customTemplates.add(template)
+}
+
+// Get all custom templates for current user
+export async function getCustomTemplates(): Promise<CustomTemplate[]> {
+  const user = await getUser()
+  if (!user) return []
+
+  return await db.customTemplates
+    .where('userId')
+    .equals(user.id)
+    .reverse()
+    .sortBy('createdAt')
+}
+
+// Get a specific custom template by ID
+export async function getCustomTemplateById(id: number): Promise<CustomTemplate | undefined> {
+  return await db.customTemplates.get(id)
+}
+
+// Update a custom template
+export async function updateCustomTemplate(
+  id: number,
+  updates: Partial<Pick<CustomTemplate, 'nameHu' | 'muscleFocus' | 'exercises' | 'assignedDays'>>
+): Promise<void> {
+  await db.customTemplates.update(id, {
+    ...updates,
+    updatedAt: new Date(),
+  })
+}
+
+// Delete a custom template
+export async function deleteCustomTemplate(id: number): Promise<void> {
+  await db.customTemplates.delete(id)
+}
+
+// Get custom templates for a specific day (0=Mon, 6=Sun)
+// Returns templates that are assigned to this day OR have no day assignment (flexible)
+export async function getCustomTemplatesForDay(dayOfWeek: number): Promise<CustomTemplate[]> {
+  const templates = await getCustomTemplates()
+  return templates.filter(t =>
+    t.assignedDays.length === 0 || t.assignedDays.includes(dayOfWeek)
+  )
+}
+
+// Convert custom template to WorkoutTemplate format (for use with existing workout flow)
+export function customTemplateToWorkoutTemplate(custom: CustomTemplate): WorkoutTemplate {
+  return {
+    id: `custom-${custom.id}`,
+    nameHu: custom.nameHu,
+    nameEn: custom.nameHu, // Use Hungarian name for both
+    muscleFocus: custom.muscleFocus,
+    exercises: custom.exercises,
+  }
+}
+
+// Check if a template ID is a custom template
+export function isCustomTemplateId(templateId: string): boolean {
+  return templateId.startsWith('custom-')
+}
+
+// Extract the numeric ID from a custom template ID
+export function getCustomTemplateNumericId(templateId: string): number | null {
+  if (!isCustomTemplateId(templateId)) return null
+  const numStr = templateId.replace('custom-', '')
+  const num = parseInt(numStr, 10)
+  return isNaN(num) ? null : num
 }

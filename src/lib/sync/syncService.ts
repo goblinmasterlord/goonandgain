@@ -163,6 +163,9 @@ async function syncItem(item: SyncQueueItem, userId: string): Promise<void> {
     case 'ai_feedback':
       await syncAIFeedback(item, userId)
       break
+    case 'custom_templates':
+      await syncCustomTemplate(item, userId)
+      break
     default:
       console.warn(`[Sync] Unknown table: ${item.table}`)
   }
@@ -348,6 +351,47 @@ async function syncAIFeedback(item: SyncQueueItem, userId: string): Promise<void
       created_at: data.createdAt,
       local_id: item.localId as number,
     })
+    if (error) throw error
+  }
+}
+
+async function syncCustomTemplate(item: SyncQueueItem, userId: string): Promise<void> {
+  const supabase = getSupabase()!
+  const data = item.data
+
+  if (item.action === 'insert') {
+    const { error } = await supabase.from('custom_templates').upsert({
+      user_id: userId,
+      name_hu: data.nameHu,
+      muscle_focus: data.muscleFocus,
+      exercises: data.exercises,
+      assigned_days: data.assignedDays,
+      created_at: data.createdAt,
+      updated_at: data.updatedAt,
+      local_id: item.localId as number,
+    }, {
+      onConflict: 'user_id,local_id',
+    })
+    if (error) throw error
+  } else if (item.action === 'update') {
+    const { error } = await supabase
+      .from('custom_templates')
+      .update({
+        name_hu: data.nameHu,
+        muscle_focus: data.muscleFocus,
+        exercises: data.exercises,
+        assigned_days: data.assignedDays,
+        updated_at: data.updatedAt,
+      })
+      .eq('user_id', userId)
+      .eq('local_id', item.localId)
+    if (error) throw error
+  } else if (item.action === 'delete') {
+    const { error } = await supabase
+      .from('custom_templates')
+      .delete()
+      .eq('user_id', userId)
+      .eq('local_id', item.localId)
     if (error) throw error
   }
 }
