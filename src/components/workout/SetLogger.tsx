@@ -539,7 +539,7 @@ function WorkoutOverviewModal({
               <div
                 key={exerciseItem.exerciseId}
                 className={cn(
-                  'p-4 border flex items-center gap-4',
+                  'p-4 border flex items-center gap-3',
                   isCurrent
                     ? 'border-accent bg-accent/10'
                     : isCompleted
@@ -582,6 +582,15 @@ function WorkoutOverviewModal({
                     MOST
                   </span>
                 )}
+                <Link
+                  to={`/exercises/${exercise.id}`}
+                  className="p-2 border border-text-muted/30 text-text-muted hover:text-accent hover:border-accent transition-colors"
+                  title="Gyakorlat részletei"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="square" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </Link>
               </div>
             )
           })}
