@@ -86,6 +86,8 @@ Muscle colors:
 - shoulders: #9333ea (purple)
 - arms: #ff0066 (pink)
 - legs: #00d4aa (teal)
+- push: #f97316 (orange, PPL)
+- pull: #22d3ee (cyan, PPL)
 ```
 
 ### Key CSS Classes (in globals.css)
@@ -157,7 +159,7 @@ Templates are defined in `src/data/templates.ts`. Each template needs:
   id: string,                    // e.g., 'chest-day'
   nameHu: string,                // e.g., 'Mellnap'
   nameEn: string,
-  muscleFocus: WorkoutType,      // chest, back, shoulders, arms, legs, flex
+  muscleFocus: WorkoutType,      // chest, back, shoulders, arms, legs, push, pull, flex
   exercises: [
     {
       exerciseId: string,        // must match an exercise.id
@@ -233,6 +235,17 @@ See PRD.md Appendix A for full translation reference.
 - [x] Workout Summary screen with performance analysis
 - [x] Coach Bebi personality update (aggressive/funny/roasting)
 
+### Completed (Phase 5)
+- [x] PPL (Push/Pull/Legs) training split mode
+- [x] Split type selection in onboarding (ProgramSelect screen)
+- [x] 6 PPL templates with A/B variations for 2x weekly frequency
+- [x] Split changer in Settings page
+- [x] Workout preview screen before starting workout
+- [x] Workout overview modal during active session
+- [x] Exercise info access from workout overview
+- [x] Viewport-aware InfoTooltip component
+- [x] Improved input placeholder styling
+
 ---
 
 ## Commands
@@ -258,32 +271,67 @@ npm run preview  # Preview production build
 
 ---
 
+## Training Splits
+
+The app supports two training split modes, selectable during onboarding or in Settings.
+
+### Bro Split (5-day)
+Traditional bodybuilding split hitting each muscle group once per week:
+- Chest Day, Back Day, Shoulders Day, Arms Day, Legs Day, Flex Day
+
+### PPL - Push/Pull/Legs (6-day)
+Modern split with 2x weekly muscle frequency for optimal hypertrophy:
+- **Push A** (Chest focus): Bench, incline, flys, shoulders, triceps
+- **Pull A** (Row focus): Rows, pulldowns, rear delts, biceps
+- **Legs A** (Squat focus): Squats, RDL, leg press, extensions, curls
+- **Push B** (Shoulder focus): OHP, incline, bench, laterals, triceps
+- **Pull B** (Deadlift focus): Deadlift, rows, pulldowns, rear delts, biceps
+- **Legs B** (Hamstring focus): RDL, hack squat, split squats, curls
+
+Templates are ordered chronologically for weekly rotation: Push A → Pull A → Legs A → Push B → Pull B → Legs B
+
+### Split Type Configuration
+- `SplitType`: `'bro-split' | 'ppl'` stored in user profile
+- Templates filtered by `splitType` on Home page
+- Changeable in Settings with confirmation modal
+
+---
+
 ## Workout Flow
 
 The workout flow is managed by the `workoutStore` (Zustand):
 
-1. **Start Workout** - User clicks "EDZÉS INDÍTÁSA" on Home page
+1. **Select Workout** - User taps a template card on Home page
+   - Navigates to `/workout?template=push-day-a`
+   - Shows WorkoutPreview screen with exercise list, stats, duration
+
+2. **Start Workout** - User clicks "EDZÉS INDÍTÁSA" on preview screen
    - Creates a new session in IndexedDB via `createSession(templateId)`
    - Loads the template and first exercise's last session data
-   - URL: `/workout?template=chest-day`
 
-2. **Log Sets** - For each exercise:
+3. **Log Sets** - For each exercise:
    - User enters weight, reps, and RIR (1-4)
    - Clicks "SOROZAT RÖGZÍTÉSE"
    - Set is saved to IndexedDB via `logSet()`
    - Rest timer starts automatically (based on exercise.restSeconds)
    - Advances to next set or next exercise
 
-3. **Swap Exercise** - User can swap current exercise for an alternative
+4. **View Workout Overview** - During workout:
+   - Tap template name in header (e.g., "Push A - 2/6")
+   - Opens WorkoutOverviewModal with full exercise list
+   - Shows completed/current/pending status per exercise
+   - Each exercise has info button linking to exercise details
+
+5. **Swap Exercise** - User can swap current exercise for an alternative
    - Opens modal with alternative exercises
    - Updates the template in-memory (not persisted)
 
-4. **Skip Set** - User can skip the current set
+6. **Skip Set** - User can skip the current set
    - Shows toast notification: "{N}. sorozat kihagyva" (red, 2 seconds)
    - Advances to next set or triggers transition screen
    - Toast uses Framer Motion animation (slide up, scale)
 
-5. **End Workout** - User clicks "Befejezés"
+7. **End Workout** - User clicks "Befejezés"
    - Session is marked complete via `completeSession(sessionId)`
    - User is returned to Home page
 
