@@ -32,3 +32,6 @@ coverage
 
 # PWA
 dev-dist
+
+# Exercise media (hosted on Cloudflare R2)
+exercise-media/

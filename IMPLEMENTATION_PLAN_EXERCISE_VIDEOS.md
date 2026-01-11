@@ -1,7 +1,7 @@
 # Implementation Plan: Exercise Video/GIF Support
 
 **Created:** January 2025
-**Status:** Ready for implementation
+**Status:** COMPLETED - Media hosted on Cloudflare R2
 **Estimated Tasks:** 8 main tasks
 
 ---
@@ -469,15 +469,36 @@ Add exercise media to the PWA cache:
 
 ---
 
+## Media Upload Status (COMPLETED)
+
+**Uploaded:** January 2026
+
+| Type | Count | Size | Source |
+|------|-------|------|--------|
+| GIFs | 46 | ~14 MB | ExerciseDB (via RapidAPI) |
+| JPGs | 92 | ~6 MB | free-exercise-db (GitHub) |
+| **Total** | **138** | **~20 MB** | |
+
+**R2 Bucket:** `goonandgain-exercises`
+**Public URL:** `https://pub-55cfaa50e66c4741abf7367de65cdd93.r2.dev`
+
+**File naming convention:**
+- GIFs: `{exerciseId}.gif`
+- Images: `{exerciseId}-0.jpg`, `{exerciseId}-1.jpg`
+
+**Local files:** Stored in `exercise-media/` (gitignored, not committed)
+
+---
+
 ## Testing Checklist
 
-- [ ] GIFs load correctly on Exercise Detail page
-- [ ] Fallback to static images works when GIF missing
+- [x] GIFs load correctly on Exercise Detail page
+- [x] Fallback to static images works when GIF missing
 - [ ] Placeholder shown when no media available
 - [ ] Media works offline (PWA cached)
-- [ ] No CORS issues with self-hosted media
-- [ ] Mobile performance acceptable (GIF file sizes)
-- [ ] Loading states show correctly
+- [x] No CORS issues with self-hosted media
+- [x] Mobile performance acceptable (GIF file sizes)
+- [x] Loading states show correctly
 
 ---
 

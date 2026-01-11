@@ -7,7 +7,7 @@ GoonAndGain is a **Hungarian-language PWA gym planner** for intermediate lifters
 - [PRD.md](PRD.md) - Full product requirements (read this for feature details)
 - [DESIGN.md](DESIGN.md) - Design philosophy (brutalist, industrial aesthetic)
 - [supabase/SUPABASE.md](supabase/SUPABASE.md) - Cloud sync setup and architecture
-- [IMPLEMENTATION_PLAN_EXERCISE_VIDEOS.md](IMPLEMENTATION_PLAN_EXERCISE_VIDEOS.md) - Exercise GIF/video implementation plan (IN PROGRESS)
+- [IMPLEMENTATION_PLAN_EXERCISE_VIDEOS.md](IMPLEMENTATION_PLAN_EXERCISE_VIDEOS.md) - Exercise GIF/video implementation plan (COMPLETED)
 
 ---
 
@@ -19,6 +19,7 @@ GoonAndGain is a **Hungarian-language PWA gym planner** for intermediate lifters
 - **AI:** Gemini 3 Flash (`gemini-3-flash-preview`) - user provides API key
 - **Animations:** Framer Motion
 - **PWA:** vite-plugin-pwa
+- **Media CDN:** Cloudflare R2 (exercise GIFs/images)
 - **Deployment:** Vercel
 
 ---
@@ -283,6 +284,15 @@ See PRD.md Appendix A for full translation reference.
 - [x] ExerciseTransition uses selected avatar
 - [x] Coach Bebi chat unchanged (only workout screens use selected avatar)
 
+### Completed (Phase 10) - Exercise Media (GIFs/Images)
+- [x] Cloudflare R2 bucket setup (`goonandgain-exercises`)
+- [x] 46 animated GIFs from ExerciseDB (via RapidAPI)
+- [x] 92 static images from free-exercise-db (2 per exercise)
+- [x] Media URL helper (`src/lib/utils/media.ts`)
+- [x] ExerciseMedia component with GIF/image fallback
+- [x] Exercise detail page with media display
+- [x] Local files gitignored (`exercise-media/`)
+
 ---
 
 ## Commands
@@ -305,6 +315,40 @@ npm run preview  # Preview production build
 6. `src/styles/globals.css` - CSS component classes
 7. `src/data/exercises.ts` - Exercise data structure
 8. `src/data/templates.ts` - Workout template structure
+
+---
+
+## Exercise Media (Cloudflare R2)
+
+Exercise GIFs and images are hosted on Cloudflare R2 for fast CDN delivery.
+
+### URLs
+- **Bucket:** `goonandgain-exercises`
+- **Public URL:** `https://pub-55cfaa50e66c4741abf7367de65cdd93.r2.dev`
+- **Environment Variable:** `VITE_EXERCISE_MEDIA_BASE_URL`
+
+### File Structure
+```
+https://pub-55cfaa50e66c4741abf7367de65cdd93.r2.dev/
+├── {exerciseId}.gif          # Animated GIF (primary)
+├── {exerciseId}-0.jpg        # Static image (fallback)
+├── {exerciseId}-1.jpg        # Static image (alternate angle)
+```
+
+### Media Stats
+- **46 GIFs** (~14 MB) - from ExerciseDB via RapidAPI
+- **92 JPGs** (~6 MB) - from free-exercise-db GitHub
+- **Total:** 138 files, ~20 MB
+
+### Key Files
+- `src/lib/utils/media.ts` - URL generation helpers
+- `src/data/exerciseMedia.ts` - Exercise ID to source ID mappings
+- `src/components/workout/ExerciseMedia.tsx` - Display component
+
+### Local Development
+Local copies stored in `exercise-media/` (gitignored). To re-download:
+1. See `PROMPT_EXERCISE_MEDIA_DOWNLOAD_UPLOAD.md` for full instructions
+2. Requires RapidAPI key for ExerciseDB GIFs
 
 ---
 
