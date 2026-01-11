@@ -9,7 +9,7 @@ export function AppShell() {
     <div className="min-h-dvh bg-bg-primary">
       <ScrollToTop />
       <OfflineIndicator />
-      <main className="pb-24 safe-top">
+      <main className="pb-28 safe-top">
         <Outlet />
       </main>
       <BottomNav />
