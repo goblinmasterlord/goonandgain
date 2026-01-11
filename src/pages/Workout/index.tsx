@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useWorkoutStore } from '@/stores'
 import { SetLogger, RestTimer, ExerciseTransition, WorkoutSummary } from '@/components/workout'
 import { Button } from '@/components/ui'
-import { getTemplateTotalSets } from '@/data'
+import { getTemplateTotalSets, getTemplateEstimatedDuration, getTemplateById, getExerciseById } from '@/data'
+import type { WorkoutTemplate } from '@/types'
 
 export function WorkoutPage() {
   const navigate = useNavigate()
@@ -20,25 +21,36 @@ export function WorkoutPage() {
 
   const [showEndConfirm, setShowEndConfirm] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [previewTemplate, setPreviewTemplate] = useState<WorkoutTemplate | null>(null)
 
-  // Handle starting workout from URL param
+  // Load template for preview from URL param
   useEffect(() => {
     const templateId = searchParams.get('template')
     if (templateId && !isActive) {
-      const handleStart = async () => {
-        setIsLoading(true)
-        try {
-          await startWorkout(templateId)
-        } catch (error) {
-          console.error('Failed to start workout:', error)
-          navigate('/')
-        } finally {
-          setIsLoading(false)
-        }
+      const tmpl = getTemplateById(templateId)
+      if (tmpl) {
+        setPreviewTemplate(tmpl)
+      } else {
+        navigate('/')
       }
-      handleStart()
     }
-  }, [searchParams, isActive, startWorkout, navigate])
+  }, [searchParams, isActive, navigate])
+
+  const handleStartWorkout = async () => {
+    const templateId = searchParams.get('template')
+    if (!templateId) return
+
+    setIsLoading(true)
+    try {
+      await startWorkout(templateId)
+      setPreviewTemplate(null)
+    } catch (error) {
+      console.error('Failed to start workout:', error)
+      navigate('/')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleEndWorkout = async () => {
     await endWorkout()
@@ -58,6 +70,17 @@ export function WorkoutPage() {
           </p>
         </div>
       </div>
+    )
+  }
+
+  // Show workout preview before starting
+  if (previewTemplate && !isActive) {
+    return (
+      <WorkoutPreview
+        template={previewTemplate}
+        onStart={handleStartWorkout}
+        onBack={() => navigate('/')}
+      />
     )
   }
 
@@ -214,6 +237,133 @@ function WorkoutComplete({ template, completedSets, onFinish }: WorkoutCompleteP
 
         <Button size="lg" onClick={onFinish} className="shadow-harsh">
           EDZÉS BEFEJEZÉSE
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// Muscle colors for exercise list
+const MUSCLE_COLORS: Record<string, string> = {
+  chest: '#ff4d00',
+  back: '#0066ff',
+  shoulders: '#9333ea',
+  biceps: '#ff0066',
+  triceps: '#ff0066',
+  quads: '#00d4aa',
+  hamstrings: '#00d4aa',
+  glutes: '#00d4aa',
+  calves: '#00d4aa',
+  core: '#8a8a8a',
+  push: '#f97316',
+  pull: '#22d3ee',
+  legs: '#00d4aa',
+}
+
+interface WorkoutPreviewProps {
+  template: WorkoutTemplate
+  onStart: () => void
+  onBack: () => void
+}
+
+function WorkoutPreview({ template, onStart, onBack }: WorkoutPreviewProps) {
+  const totalSets = getTemplateTotalSets(template)
+  const duration = getTemplateEstimatedDuration(template)
+  const color = MUSCLE_COLORS[template.muscleFocus] || '#ff4d00'
+
+  return (
+    <div className="min-h-screen bg-bg-primary pb-24">
+      {/* Header */}
+      <header className="px-4 pt-5 pb-4 border-b-2 border-text-muted/20">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors mb-4"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="square" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm font-display uppercase tracking-wider">Vissza</span>
+        </button>
+
+        <div className="flex items-center gap-3">
+          <div
+            className="w-1.5 h-12 flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
+          <div>
+            <h1 className="font-display text-2xl font-extrabold uppercase tracking-wide">
+              {template.nameHu}
+            </h1>
+            <p className="text-text-muted text-sm mt-0.5">
+              {template.exercises.length} gyakorlat
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {/* Stats */}
+      <div className="px-4 py-4 border-b border-text-muted/10">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-3 bg-bg-secondary border border-text-muted/20 text-center">
+            <p className="font-mono text-2xl font-bold text-accent">{template.exercises.length}</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">Gyakorlat</p>
+          </div>
+          <div className="p-3 bg-bg-secondary border border-text-muted/20 text-center">
+            <p className="font-mono text-2xl font-bold text-text-primary">{totalSets}</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">Sorozat</p>
+          </div>
+          <div className="p-3 bg-bg-secondary border border-text-muted/20 text-center">
+            <p className="font-mono text-2xl font-bold text-text-primary">~{duration}</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">Perc</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Exercise List */}
+      <div className="px-4 py-4">
+        <h2 className="text-2xs font-display uppercase tracking-wider text-text-muted mb-3">
+          Gyakorlatok
+        </h2>
+        <div className="space-y-2">
+          {template.exercises.map((exerciseItem, index) => {
+            const exercise = getExerciseById(exerciseItem.exerciseId)
+            if (!exercise) return null
+
+            const muscleColor = MUSCLE_COLORS[exercise.muscleGroupPrimary] || '#8a8a8a'
+
+            return (
+              <div
+                key={exerciseItem.exerciseId}
+                className="p-3 bg-bg-secondary border border-text-muted/20 flex items-center gap-3"
+              >
+                <div
+                  className="w-8 h-8 flex items-center justify-center flex-shrink-0 font-mono text-sm font-bold"
+                  style={{ backgroundColor: `${muscleColor}20`, color: muscleColor }}
+                >
+                  {index + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display text-sm font-semibold text-text-primary truncate">
+                    {exercise.nameHu}
+                  </p>
+                  <p className="text-2xs text-text-muted">
+                    {exerciseItem.targetSets} × {exerciseItem.targetRepMin}-{exerciseItem.targetRepMax} ism.
+                  </p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Start Button - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-bg-primary border-t border-text-muted/20">
+        <Button
+          size="lg"
+          className="w-full shadow-harsh"
+          onClick={onStart}
+        >
+          EDZÉS INDÍTÁSA
         </Button>
       </div>
     </div>

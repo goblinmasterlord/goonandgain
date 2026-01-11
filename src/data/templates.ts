@@ -698,13 +698,13 @@ export const broSplitTemplates: WorkoutTemplate[] = [
   flexDayTemplate,
 ]
 
-// PPL templates
+// PPL templates (in chronological order: week 1 rotation, then week 2)
 export const pplTemplates: WorkoutTemplate[] = [
   pushDayATemplate,
-  pushDayBTemplate,
   pullDayATemplate,
-  pullDayBTemplate,
   legsDayATemplate,
+  pushDayBTemplate,
+  pullDayBTemplate,
   legsDayBTemplate,
 ]
 
