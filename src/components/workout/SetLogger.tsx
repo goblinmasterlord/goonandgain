@@ -6,7 +6,7 @@ import { getExerciseById, muscleGroups, equipmentTypes } from '@/data'
 import { Button, InfoTooltip } from '@/components/ui'
 import { cn } from '@/lib/utils/cn'
 import { calculateOverloadSuggestion, formatLastSessionDisplay } from '@/lib/workout'
-import type { RIR } from '@/types'
+import type { RIR, WorkoutTemplate, SetLog } from '@/types'
 
 export function SetLogger() {
   const {
@@ -31,6 +31,7 @@ export function SetLogger() {
   const [showSwapModal, setShowSwapModal] = useState(false)
   const [showSkipToast, setShowSkipToast] = useState(false)
   const [skippedSetNumber, setSkippedSetNumber] = useState<number | null>(null)
+  const [showOverviewModal, setShowOverviewModal] = useState(false)
 
   // Auto-hide skip toast after 2 seconds
   useEffect(() => {
@@ -94,9 +95,15 @@ export function SetLogger() {
               style={{ backgroundColor: primaryMuscle?.color }}
             />
             <div>
-              <p className="text-2xs font-display uppercase tracking-[0.3em] text-text-muted">
+              <button
+                onClick={() => setShowOverviewModal(true)}
+                className="text-2xs font-display uppercase tracking-[0.3em] text-text-muted hover:text-accent transition-colors flex items-center gap-1"
+              >
                 {template.nameHu} - {currentExerciseIndex + 1}/{template.exercises.length}
-              </p>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="square" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
               <h1 className="font-display text-xl font-extrabold uppercase tracking-wide text-text-primary">
                 {exercise.nameHu}
               </h1>
@@ -376,6 +383,17 @@ export function SetLogger() {
           onClose={() => setShowSwapModal(false)}
         />
       )}
+
+      {/* Workout Overview Modal */}
+      {showOverviewModal && template && (
+        <WorkoutOverviewModal
+          template={template}
+          currentExerciseIndex={currentExerciseIndex}
+          completedSets={completedSets}
+          sessionId={sessionId}
+          onClose={() => setShowOverviewModal(false)}
+        />
+      )}
     </div>
   )
 }
@@ -448,6 +466,125 @@ function SwapExerciseModal({ exerciseId, onClose }: SwapExerciseModalProps) {
               Nincs elérhető alternatíva
             </p>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Muscle colors map
+const MUSCLE_COLORS: Record<string, string> = {
+  chest: '#ff4d00',
+  back: '#0066ff',
+  shoulders: '#9333ea',
+  biceps: '#ff0066',
+  triceps: '#ff0066',
+  quads: '#00d4aa',
+  hamstrings: '#00d4aa',
+  glutes: '#00d4aa',
+  calves: '#00d4aa',
+  core: '#8a8a8a',
+}
+
+interface WorkoutOverviewModalProps {
+  template: WorkoutTemplate
+  currentExerciseIndex: number
+  completedSets: SetLog[]
+  sessionId: number | null
+  onClose: () => void
+}
+
+function WorkoutOverviewModal({
+  template,
+  currentExerciseIndex,
+  completedSets,
+  sessionId,
+  onClose,
+}: WorkoutOverviewModalProps) {
+  return (
+    <div className="fixed inset-0 bg-bg-primary/95 z-50 flex flex-col">
+      <header className="px-5 pt-6 pb-4 border-b border-text-muted/20 flex items-center justify-between">
+        <h2 className="font-display text-lg font-bold uppercase tracking-wider">
+          {template.nameHu}
+        </h2>
+        <button onClick={onClose} className="p-2 text-text-muted hover:text-accent">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="square" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </header>
+
+      <div className="flex-1 overflow-auto px-5 py-4">
+        <p className="text-text-muted text-sm mb-4">
+          Edzés áttekintése ({currentExerciseIndex + 1}/{template.exercises.length} gyakorlat)
+        </p>
+
+        <div className="space-y-2">
+          {template.exercises.map((exerciseItem, index) => {
+            const exercise = getExerciseById(exerciseItem.exerciseId)
+            if (!exercise) return null
+
+            const muscleColor = MUSCLE_COLORS[exercise.muscleGroupPrimary] || '#8a8a8a'
+
+            // Count completed sets for this exercise
+            const exerciseCompletedSets = completedSets.filter(
+              (s) => s.exerciseId === exercise.id && s.sessionId === sessionId
+            ).length
+
+            const isCompleted = exerciseCompletedSets >= exerciseItem.targetSets
+            const isCurrent = index === currentExerciseIndex
+            const isPending = index > currentExerciseIndex
+
+            return (
+              <div
+                key={exerciseItem.exerciseId}
+                className={cn(
+                  'p-4 border flex items-center gap-4',
+                  isCurrent
+                    ? 'border-accent bg-accent/10'
+                    : isCompleted
+                      ? 'border-success/50 bg-success/5'
+                      : 'border-text-muted/20 bg-bg-secondary'
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-8 h-8 flex items-center justify-center flex-shrink-0 font-mono text-sm font-bold',
+                    isCompleted && 'bg-success/20 text-success',
+                    isCurrent && 'bg-accent/20 text-accent',
+                    isPending && 'bg-text-muted/10 text-text-muted'
+                  )}
+                  style={!isCompleted && !isCurrent ? {} : { backgroundColor: `${muscleColor}20`, color: muscleColor }}
+                >
+                  {isCompleted ? (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="square" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    index + 1
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    'font-display text-sm font-semibold truncate',
+                    isCompleted ? 'text-success' : isCurrent ? 'text-accent' : 'text-text-primary'
+                  )}>
+                    {exercise.nameHu}
+                  </p>
+                  <p className="text-2xs text-text-muted">
+                    {exerciseCompletedSets}/{exerciseItem.targetSets} sorozat
+                    {' • '}
+                    {exerciseItem.targetRepMin}-{exerciseItem.targetRepMax} ism.
+                  </p>
+                </div>
+                {isCurrent && (
+                  <span className="text-2xs font-display uppercase tracking-wider text-accent px-2 py-1 border border-accent">
+                    MOST
+                  </span>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
