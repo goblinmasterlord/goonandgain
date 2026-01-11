@@ -202,7 +202,7 @@ export function SetLogger() {
               inputMode="decimal"
               value={weightInput}
               onChange={(e) => setWeight(e.target.value)}
-              className="w-full p-4 bg-bg-secondary border-2 border-text-muted/30 font-mono text-2xl text-center text-text-primary focus:border-accent focus:outline-none transition-colors"
+              className="w-full p-4 bg-bg-secondary border-2 border-text-muted/30 font-mono text-2xl text-center text-text-primary placeholder:text-text-muted/60 focus:border-accent focus:outline-none transition-colors"
               placeholder={overloadSuggestion.suggestedWeight > 0 ? overloadSuggestion.suggestedWeight.toString() : '0'}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted font-display text-sm uppercase">
@@ -235,7 +235,7 @@ export function SetLogger() {
               inputMode="decimal"
               value={addedWeightInput}
               onChange={(e) => setAddedWeight(e.target.value)}
-              className="w-full p-4 bg-bg-secondary border-2 border-text-muted/30 font-mono text-xl text-center text-text-primary focus:border-accent focus:outline-none transition-colors"
+              className="w-full p-4 bg-bg-secondary border-2 border-text-muted/30 font-mono text-xl text-center text-text-primary placeholder:text-text-muted/60 focus:border-accent focus:outline-none transition-colors"
               placeholder="0"
             />
           </div>
@@ -250,7 +250,7 @@ export function SetLogger() {
               inputMode="numeric"
               value={repsInput}
               onChange={(e) => setReps(e.target.value)}
-              className="w-full p-4 bg-bg-secondary border-2 border-text-muted/30 font-mono text-2xl text-center text-text-primary focus:border-accent focus:outline-none transition-colors"
+              className="w-full p-4 bg-bg-secondary border-2 border-text-muted/30 font-mono text-2xl text-center text-text-primary placeholder:text-text-muted/60 focus:border-accent focus:outline-none transition-colors"
               placeholder={`${overloadSuggestion.targetReps.min}-${overloadSuggestion.targetReps.max}`}
             />
           </div>
