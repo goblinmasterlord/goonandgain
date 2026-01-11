@@ -272,7 +272,7 @@ function WorkoutPreview({ template, onStart, onBack }: WorkoutPreviewProps) {
   const color = MUSCLE_COLORS[template.muscleFocus] || '#ff4d00'
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-24">
+    <div className="min-h-screen bg-bg-primary pb-40">
       {/* Header */}
       <header className="px-4 pt-5 pb-4 border-b-2 border-text-muted/20">
         <button
@@ -356,8 +356,8 @@ function WorkoutPreview({ template, onStart, onBack }: WorkoutPreviewProps) {
         </div>
       </div>
 
-      {/* Start Button - Fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-bg-primary border-t border-text-muted/20">
+      {/* Start Button - Fixed above bottom nav */}
+      <div className="fixed bottom-20 left-0 right-0 p-4 pb-safe bg-bg-primary border-t border-text-muted/20">
         <Button
           size="lg"
           className="w-full shadow-harsh"
