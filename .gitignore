@@ -35,3 +35,6 @@ dev-dist
 
 # Exercise media (hosted on Cloudflare R2)
 exercise-media/
+
+# Wrangler local state (R2 emulator cache)
+.wrangler/
