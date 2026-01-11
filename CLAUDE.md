@@ -7,6 +7,7 @@ GoonAndGain is a **Hungarian-language PWA gym planner** for intermediate lifters
 - [PRD.md](PRD.md) - Full product requirements (read this for feature details)
 - [DESIGN.md](DESIGN.md) - Design philosophy (brutalist, industrial aesthetic)
 - [supabase/SUPABASE.md](supabase/SUPABASE.md) - Cloud sync setup and architecture
+- [IMPLEMENTATION_PLAN_EXERCISE_VIDEOS.md](IMPLEMENTATION_PLAN_EXERCISE_VIDEOS.md) - Exercise GIF/video implementation plan (IN PROGRESS)
 
 ---
 

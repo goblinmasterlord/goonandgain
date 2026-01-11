@@ -1,6 +1,7 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getExerciseById, muscleGroups, equipmentTypes } from '@/data'
 import { Button } from '@/components/ui'
+import { ExerciseMedia } from '@/components/workout/ExerciseMedia'
 import { cn } from '@/lib/utils/cn'
 
 export function ExerciseDetailPage() {
@@ -63,6 +64,16 @@ export function ExerciseDetailPage() {
           </div>
         </div>
       </header>
+
+      {/* Exercise Demo */}
+      <section className="border-b border-text-muted/10">
+        <ExerciseMedia
+          exerciseId={exercise.id}
+          exerciseName={exercise.nameHu}
+          className="w-full aspect-[4/3] max-h-72"
+          showControls={true}
+        />
+      </section>
 
       {/* Quick stats */}
       <div className="px-5 py-4 border-b border-text-muted/10 bg-bg-secondary/50">
