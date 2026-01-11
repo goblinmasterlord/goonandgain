@@ -6,6 +6,10 @@ import {
   logSet as dbLogSet,
   getSetLogsForSession,
   getLastSetLogsForExercise,
+  isCustomTemplateId,
+  getCustomTemplateNumericId,
+  getCustomTemplateById,
+  customTemplateToWorkoutTemplate,
 } from '@/lib/db'
 import { getTemplateById } from '@/data'
 
@@ -103,7 +107,24 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   ...initialState,
 
   startWorkout: async (templateId: string) => {
-    const template = getTemplateById(templateId)
+    let template: WorkoutTemplate | null = null
+
+    // Check if this is a custom template
+    if (isCustomTemplateId(templateId)) {
+      const numericId = getCustomTemplateNumericId(templateId)
+      if (numericId) {
+        const customTemplate = await getCustomTemplateById(numericId)
+        if (customTemplate) {
+          template = customTemplateToWorkoutTemplate(customTemplate)
+        }
+      }
+    } else {
+      const regularTemplate = getTemplateById(templateId)
+      if (regularTemplate) {
+        template = regularTemplate
+      }
+    }
+
     if (!template) throw new Error('Template not found')
 
     const sessionId = await createSession(templateId)

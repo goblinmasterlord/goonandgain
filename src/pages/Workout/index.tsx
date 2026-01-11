@@ -4,6 +4,7 @@ import { useWorkoutStore } from '@/stores'
 import { SetLogger, RestTimer, ExerciseTransition, WorkoutSummary } from '@/components/workout'
 import { Button } from '@/components/ui'
 import { getTemplateTotalSets, getTemplateEstimatedDuration, getTemplateById, getExerciseById } from '@/data'
+import { isCustomTemplateId, getCustomTemplateNumericId, getCustomTemplateById, customTemplateToWorkoutTemplate } from '@/lib/db'
 import type { WorkoutTemplate } from '@/types'
 
 export function WorkoutPage() {
@@ -25,15 +26,32 @@ export function WorkoutPage() {
 
   // Load template for preview from URL param
   useEffect(() => {
-    const templateId = searchParams.get('template')
-    if (templateId && !isActive) {
-      const tmpl = getTemplateById(templateId)
-      if (tmpl) {
-        setPreviewTemplate(tmpl)
-      } else {
+    async function loadTemplatePreview() {
+      const templateId = searchParams.get('template')
+      if (!templateId || isActive) return
+
+      // Check if this is a custom template
+      if (isCustomTemplateId(templateId)) {
+        const numericId = getCustomTemplateNumericId(templateId)
+        if (numericId) {
+          const customTemplate = await getCustomTemplateById(numericId)
+          if (customTemplate) {
+            setPreviewTemplate(customTemplateToWorkoutTemplate(customTemplate))
+            return
+          }
+        }
         navigate('/')
+      } else {
+        const tmpl = getTemplateById(templateId)
+        if (tmpl) {
+          setPreviewTemplate(tmpl)
+        } else {
+          navigate('/')
+        }
       }
     }
+
+    loadTemplatePreview()
   }, [searchParams, isActive, navigate])
 
   const handleStartWorkout = async () => {

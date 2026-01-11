@@ -6,6 +6,8 @@ import { ExercisesPage, ExerciseDetailPage } from '@/pages/Exercises'
 import { ProgressPage } from '@/pages/Progress'
 import { HistoryPage } from '@/pages/History'
 import { SettingsPage } from '@/pages/Settings'
+import { CustomWorkoutsPage } from '@/pages/Settings/CustomWorkouts'
+import { CustomWorkoutBuilderPage } from '@/pages/Settings/CustomWorkouts/Builder'
 import { WorkoutPage } from '@/pages/Workout'
 import { CoachPage } from '@/pages/Coach'
 import { DevPage } from '@/pages/Dev'
@@ -99,6 +101,9 @@ const router = createBrowserRouter([
       { path: 'history', element: <HistoryPage /> },
       { path: 'coach', element: <CoachPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'settings/custom-workouts', element: <CustomWorkoutsPage /> },
+      { path: 'settings/custom-workouts/new', element: <CustomWorkoutBuilderPage /> },
+      { path: 'settings/custom-workouts/:id', element: <CustomWorkoutBuilderPage /> },
       { path: 'dev', element: <DevPage /> },
     ],
   },

@@ -11,8 +11,10 @@ import {
   getSetsInDateRange,
   getWeekStart,
   getUser,
+  getCustomTemplates,
+  getCustomTemplatesForDay,
 } from '@/lib/db'
-import type { WorkoutTemplate, SplitType } from '@/types'
+import type { WorkoutTemplate, SplitType, CustomTemplate } from '@/types'
 
 // Muscle colors for template cards
 const MUSCLE_COLORS: Record<string, string> = {
@@ -78,6 +80,7 @@ export function HomePage() {
   const [hasWorkoutHistory, setHasWorkoutHistory] = useState(false)
   const [splitType, setSplitType] = useState<SplitType>('bro-split')
   const [availableTemplates, setAvailableTemplates] = useState<WorkoutTemplate[]>([])
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([])
   const [weeklyStats, setWeeklyStats] = useState({
     sessionsThisWeek: 0,
     totalSetsThisWeek: 0,
@@ -95,6 +98,23 @@ export function HomePage() {
         // Get templates for user's split type
         const templates = getAvailableTemplatesBySplit(userSplitType)
         setAvailableTemplates(templates)
+
+        // Get custom templates for today (or all if none assigned)
+        // JS: 0=Sunday, 1=Monday ... but our DB uses 0=Monday
+        const jsDay = new Date().getDay()
+        const ourDay = jsDay === 0 ? 6 : jsDay - 1 // Convert to 0=Mon format
+        const todayCustom = await getCustomTemplatesForDay(ourDay)
+        // Also get templates with no day assignment (available any day)
+        const allCustom = await getCustomTemplates()
+        const noAssignment = allCustom.filter(t => t.assignedDays.length === 0)
+        // Merge and deduplicate
+        const uniqueCustom = [...todayCustom]
+        noAssignment.forEach(t => {
+          if (!uniqueCustom.some(c => c.id === t.id)) {
+            uniqueCustom.push(t)
+          }
+        })
+        setCustomTemplates(uniqueCustom)
 
         // Get recent sessions to determine if user has history
         const sessions = await getRecentSessions(10)
@@ -178,16 +198,17 @@ export function HomePage() {
         <ActiveUserView
           weeklyStats={weeklyStats}
           availableTemplates={availableTemplates}
+          customTemplates={customTemplates}
         />
       ) : (
-        <EmptyState availableTemplates={availableTemplates} />
+        <EmptyState availableTemplates={availableTemplates} customTemplates={customTemplates} />
       )}
     </div>
   )
 }
 
 // Empty state for new users
-function EmptyState({ availableTemplates }: { availableTemplates: WorkoutTemplate[] }) {
+function EmptyState({ availableTemplates, customTemplates }: { availableTemplates: WorkoutTemplate[]; customTemplates: CustomTemplate[] }) {
   return (
     <div className="px-4 py-6">
       {/* Welcome message with Coach Bebi */}
@@ -209,6 +230,19 @@ function EmptyState({ availableTemplates }: { availableTemplates: WorkoutTemplat
           Válassz egy edzéstervet és kezdjük el a munkát!
         </p>
       </motion.div>
+
+      {/* Custom Templates */}
+      {customTemplates.length > 0 && (
+        <div className="space-y-3 mb-6">
+          <div className="section-header">
+            <span className="section-title">SAJÁT EDZÉSEK</span>
+          </div>
+
+          {customTemplates.map((template, index) => (
+            <CustomTemplateCard key={template.id} template={template} index={index} />
+          ))}
+        </div>
+      )}
 
       {/* Template cards */}
       <div className="space-y-3">
@@ -316,13 +350,85 @@ function TemplateCard({ template, index }: { template: WorkoutTemplate; index: n
   )
 }
 
+// Custom template card component
+function CustomTemplateCard({ template, index }: { template: CustomTemplate; index: number }) {
+  const color = MUSCLE_COLORS[template.muscleFocus] || '#8a8a8a'
+  const icon = MUSCLE_ICONS[template.muscleFocus]
+  const totalSets = template.exercises.reduce((sum, ex) => sum + ex.targetSets, 0)
+  // Estimate duration: ~3 min per set including rest
+  const estimatedDuration = Math.round(totalSets * 3)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.2 }}
+    >
+      <Link
+        to={`/workout?template=custom-${template.id}`}
+        className="block bg-bg-secondary border-2 border-text-muted/20 hover:border-accent transition-colors overflow-hidden"
+      >
+        <div className="flex items-stretch">
+          {/* Color stripe */}
+          <div className="w-1.5 flex-shrink-0" style={{ backgroundColor: color }} />
+
+          {/* Content */}
+          <div className="flex-1 p-4 flex items-center gap-4">
+            {/* Icon */}
+            <div
+              className="w-12 h-12 flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${color}20`, color }}
+            >
+              {icon || (
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" />
+                </svg>
+              )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-display text-lg font-bold uppercase tracking-wide text-text-primary truncate">
+                  {template.nameHu}
+                </h3>
+                <span className="px-1.5 py-0.5 text-2xs font-display uppercase tracking-wider bg-accent/20 text-accent flex-shrink-0">
+                  SAJÁT
+                </span>
+              </div>
+              <div className="flex gap-4 mt-1">
+                <span className="text-xs text-text-muted font-mono">
+                  {template.exercises.length} gyakorlat
+                </span>
+                <span className="text-xs text-text-muted font-mono">
+                  ~{totalSets} sorozat
+                </span>
+                <span className="text-xs text-text-muted font-mono">
+                  ~{estimatedDuration} perc
+                </span>
+              </div>
+            </div>
+
+            {/* Arrow */}
+            <svg className="w-5 h-5 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="square" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  )
+}
+
 // View for users with workout history
 function ActiveUserView({
   weeklyStats,
   availableTemplates,
+  customTemplates,
 }: {
   weeklyStats: { sessionsThisWeek: number; totalSetsThisWeek: number }
   availableTemplates: WorkoutTemplate[]
+  customTemplates: CustomTemplate[]
 }) {
   return (
     <>
@@ -353,10 +459,25 @@ function ActiveUserView({
         </div>
       </section>
 
+      {/* Custom Templates section */}
+      {customTemplates.length > 0 && (
+        <section className="px-4 py-4">
+          <div className="section-header">
+            <span className="section-title">SAJÁT EDZÉSEK</span>
+          </div>
+
+          <div className="space-y-2">
+            {customTemplates.map((template, index) => (
+              <CustomTemplateCard key={template.id} template={template} index={index} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Workout selection */}
       <section className="px-4 py-4">
         <div className="section-header">
-          <span className="section-title">VÁLASSZ EDZÉST</span>
+          <span className="section-title">EDZÉSTERVEK</span>
         </div>
 
         <div className="space-y-2">

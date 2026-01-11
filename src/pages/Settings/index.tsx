@@ -486,6 +486,49 @@ export function SettingsPage() {
         </div>
       </section>
 
+      {/* Custom Workouts Section */}
+      <section className="px-5 py-4 border-b border-text-muted/10">
+        <h2 className="text-2xs font-display uppercase tracking-wider text-text-muted mb-4">
+          Saját edzések
+        </h2>
+
+        <button
+          onClick={() => navigate('/settings/custom-workouts')}
+          className="w-full p-4 bg-bg-secondary border border-text-muted/20 flex items-center justify-between hover:border-accent/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-accent/20 flex items-center justify-center">
+              <svg
+                className="w-5 h-5 text-accent"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="square" d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <div className="text-left">
+              <p className="font-display text-text-primary font-semibold">
+                Egyéni edzéstervek
+              </p>
+              <p className="text-2xs text-text-muted">
+                Hozz létre saját gyakorlatokkal
+              </p>
+            </div>
+          </div>
+          <svg
+            className="w-5 h-5 text-text-muted"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="square" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </section>
+
       {/* Split Change Confirmation Modal */}
       {showSplitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">

@@ -7,6 +7,7 @@ export type SyncTable =
   | 'set_logs'
   | 'estimated_maxes'
   | 'ai_feedback'
+  | 'custom_templates'
 
 export type SyncAction = 'insert' | 'update' | 'delete'
 
@@ -110,5 +111,24 @@ export interface SupabaseAIFeedback {
   content: string
   data_snapshot: Record<string, unknown> | null
   created_at: string
+  local_id: number
+}
+
+export interface SupabaseCustomTemplate {
+  id?: number
+  user_id: string
+  name_hu: string
+  muscle_focus: string
+  exercises: Array<{
+    exerciseId: string
+    order: number
+    targetSets: number
+    targetRepMin: number
+    targetRepMax: number
+    restSeconds: number
+  }>
+  assigned_days: number[]
+  created_at: string
+  updated_at: string
   local_id: number
 }

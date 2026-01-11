@@ -98,6 +98,42 @@ export interface TemplateExercise {
   restSeconds: number
 }
 
+// Custom Template types (user-created workouts)
+export interface CustomTemplate {
+  id?: number // Auto-increment for Dexie
+  odbc?: string // For Supabase sync
+  userId: string
+  nameHu: string
+  muscleFocus: WorkoutType // For color coding
+  exercises: TemplateExercise[]
+  assignedDays: number[] // 0=Mon, 1=Tue, etc. Empty = any day
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Day of week type for custom templates
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6 // Mon-Sun
+
+export const DAY_NAMES_HU: Record<DayOfWeek, string> = {
+  0: 'Hétfő',
+  1: 'Kedd',
+  2: 'Szerda',
+  3: 'Csütörtök',
+  4: 'Péntek',
+  5: 'Szombat',
+  6: 'Vasárnap',
+}
+
+export const DAY_ABBREV_HU: Record<DayOfWeek, string> = {
+  0: 'H',
+  1: 'K',
+  2: 'Sze',
+  3: 'Cs',
+  4: 'P',
+  5: 'Szo',
+  6: 'V',
+}
+
 // Session types
 export interface Session {
   id?: number
