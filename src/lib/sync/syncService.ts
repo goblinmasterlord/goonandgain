@@ -243,6 +243,27 @@ async function syncSession(item: SyncQueueItem, userId: string): Promise<void> {
       .eq('user_id', userId)
       .eq('local_id', item.localId)
     if (error) throw error
+  } else if (item.action === 'delete') {
+    // Delete associated set_logs first (cascade should handle this, but being safe)
+    await supabase
+      .from('set_logs')
+      .delete()
+      .eq('session_id', (
+        await supabase
+          .from('sessions')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('local_id', item.localId)
+          .single()
+      ).data?.id)
+
+    // Then delete the session
+    const { error } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('user_id', userId)
+      .eq('local_id', item.localId)
+    if (error) throw error
   }
 }
 
