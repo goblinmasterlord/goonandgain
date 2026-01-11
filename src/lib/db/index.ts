@@ -386,3 +386,118 @@ export async function getEstimatedMaxHistory(
     .sortBy('calculatedAt')
     .then((results) => results.slice(0, limit))
 }
+
+// Delete session and all its set logs
+export async function deleteSession(sessionId: number): Promise<{
+  deletedSetIds: number[]
+  session: Session | undefined
+}> {
+  // Get the session first for sync purposes
+  const session = await db.sessions.get(sessionId)
+
+  // Get all set logs for this session
+  const sets = await db.setLogs.where('sessionId').equals(sessionId).toArray()
+  const deletedSetIds = sets.map(s => s.id!).filter(Boolean)
+
+  // Delete all set logs for this session
+  await db.setLogs.where('sessionId').equals(sessionId).delete()
+
+  // Delete the session itself
+  await db.sessions.delete(sessionId)
+
+  return { deletedSetIds, session }
+}
+
+// Get sessions count for a date range
+export async function getSessionCountInDateRange(
+  startDate: Date,
+  endDate: Date
+): Promise<number> {
+  const user = await getUser()
+  if (!user) return 0
+
+  const sessions = await db.sessions
+    .where('userId')
+    .equals(user.id)
+    .filter(
+      (s) =>
+        s.completedAt !== undefined &&
+        new Date(s.date) >= startDate &&
+        new Date(s.date) < endDate
+    )
+    .toArray()
+
+  return sessions.length
+}
+
+// Get total weight lifted in a date range
+export async function getTotalWeightInDateRange(
+  startDate: Date,
+  endDate: Date
+): Promise<number> {
+  const sets = await getSetsInDateRange(startDate, endDate)
+  return sets.reduce((total, set) => total + (set.weightKg * set.reps), 0)
+}
+
+// Get personal records (highest weight for each exercise)
+export interface PersonalRecord {
+  exerciseId: string
+  weightKg: number
+  reps: number
+  date: Date
+  sessionId: number
+}
+
+export async function getPersonalRecords(): Promise<PersonalRecord[]> {
+  const user = await getUser()
+  if (!user) return []
+
+  // Get all completed sessions
+  const sessions = await db.sessions
+    .where('userId')
+    .equals(user.id)
+    .filter((s) => s.completedAt !== undefined)
+    .toArray()
+
+  if (sessions.length === 0) return []
+
+  // Get all set logs
+  const allSets: (SetLog & { date: Date })[] = []
+  for (const session of sessions) {
+    const sets = await db.setLogs.where('sessionId').equals(session.id!).toArray()
+    sets.forEach(set => {
+      allSets.push({ ...set, date: session.date })
+    })
+  }
+
+  // Group by exercise and find max weight for each
+  const prMap = new Map<string, PersonalRecord>()
+
+  allSets.forEach(set => {
+    const existing = prMap.get(set.exerciseId)
+    if (!existing || set.weightKg > existing.weightKg) {
+      prMap.set(set.exerciseId, {
+        exerciseId: set.exerciseId,
+        weightKg: set.weightKg,
+        reps: set.reps,
+        date: set.date,
+        sessionId: set.sessionId,
+      })
+    }
+  })
+
+  return Array.from(prMap.values())
+}
+
+// Get recent PRs (PRs set within a date range)
+export async function getRecentPRs(
+  startDate: Date,
+  endDate: Date
+): Promise<PersonalRecord[]> {
+  const allPRs = await getPersonalRecords()
+
+  return allPRs.filter(pr => {
+    const prDate = new Date(pr.date)
+    return prDate >= startDate && prDate < endDate
+  })
+}

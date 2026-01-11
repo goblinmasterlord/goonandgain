@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { format, formatDistanceToNow } from 'date-fns'
 import { hu } from 'date-fns/locale'
+import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion'
 import {
   getRecentSessionSummaries,
   getSessionWithSets,
+  deleteSession,
   type SessionSummary,
   type SessionWithSets,
 } from '@/lib/db'
 import { getTemplateById, getExerciseById, muscleGroups } from '@/data'
 import { Button } from '@/components/ui'
 import { SetEditModal } from '@/components/workout/SetEditModal'
+import { queueSync, isSupabaseConfigured } from '@/lib/sync'
 import { cn } from '@/lib/utils/cn'
 import type { SetLog } from '@/types'
 
@@ -18,6 +21,8 @@ export function HistoryPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedSession, setSelectedSession] = useState<SessionWithSets | null>(null)
+  const [sessionToDelete, setSessionToDelete] = useState<SessionSummary | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     loadSessions()
@@ -39,6 +44,33 @@ export function HistoryPage() {
     const session = await getSessionWithSets(sessionId)
     if (session) {
       setSelectedSession(session)
+    }
+  }
+
+  const handleDeleteSession = async () => {
+    if (!sessionToDelete?.id) return
+
+    setIsDeleting(true)
+    try {
+      const { deletedSetIds, session } = await deleteSession(sessionToDelete.id)
+
+      // Queue sync for deletions if Supabase is configured
+      if (isSupabaseConfigured() && session) {
+        // Queue set log deletions
+        for (const setId of deletedSetIds) {
+          await queueSync('set_logs', 'delete', setId, {})
+        }
+        // Queue session deletion
+        await queueSync('sessions', 'delete', sessionToDelete.id, {})
+      }
+
+      // Update local state
+      setSessions((prev) => prev.filter((s) => s.id !== sessionToDelete.id))
+      setSessionToDelete(null)
+    } catch (error) {
+      console.error('Failed to delete session:', error)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -83,98 +115,43 @@ export function HistoryPage() {
         </p>
       </header>
 
+      {/* Swipe hint */}
+      {sessions.length > 0 && (
+        <div className="px-5 pt-3 pb-1">
+          <p className="text-2xs text-text-muted text-center">
+            Húzd balra a törléshez
+          </p>
+        </div>
+      )}
+
       {/* Session List */}
       {sessions.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="px-5 py-4 space-y-3">
-          {sessions.map((session) => {
-            const duration = calculateDuration(session.startedAt, session.completedAt)
-            const muscleColor = getMuscleColor(session.templateId)
-
-            return (
-              <button
-                key={session.id}
-                onClick={() => openSessionDetail(session.id!)}
-                className="w-full text-left"
-              >
-                <div
-                  className={cn(
-                    'p-4 border border-text-muted/20 bg-bg-secondary',
-                    'hover:border-accent/50 transition-all duration-100',
-                    'flex items-stretch gap-4'
-                  )}
-                >
-                  {/* Muscle color bar */}
-                  <div
-                    className="w-1 self-stretch"
-                    style={{ backgroundColor: muscleColor }}
-                  />
-
-                  {/* Content */}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-display font-bold text-text-primary uppercase tracking-wide">
-                          {getTemplateName(session.templateId)}
-                        </h3>
-                        <p className="text-2xs text-text-muted mt-1">
-                          {format(new Date(session.date), 'yyyy. MMMM d.', { locale: hu })}
-                          {' · '}
-                          {formatDistanceToNow(new Date(session.date), {
-                            addSuffix: true,
-                            locale: hu,
-                          })}
-                        </p>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="text-right">
-                        <p className="font-mono text-lg font-bold text-accent">
-                          {session.totalSets}
-                        </p>
-                        <p className="text-2xs text-text-muted uppercase tracking-wider">
-                          sorozat
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Bottom row */}
-                    <div className="flex items-center gap-4 mt-3 pt-3 border-t border-text-muted/10">
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-sm text-text-secondary">
-                          {session.exerciseCount}
-                        </span>
-                        <span className="text-2xs text-text-muted">gyakorlat</span>
-                      </div>
-                      {duration > 0 && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-mono text-sm text-text-secondary">
-                            {duration}
-                          </span>
-                          <span className="text-2xs text-text-muted">perc</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Arrow */}
-                  <div className="flex items-center">
-                    <svg
-                      className="w-5 h-5 text-text-muted"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="square" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-            )
-          })}
+        <div className="px-5 py-2 space-y-3">
+          {sessions.map((session) => (
+            <SwipeableSessionCard
+              key={session.id}
+              session={session}
+              onOpen={() => openSessionDetail(session.id!)}
+              onDelete={() => setSessionToDelete(session)}
+              getTemplateName={getTemplateName}
+              getMuscleColor={getMuscleColor}
+              calculateDuration={calculateDuration}
+            />
+          ))}
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {sessionToDelete && (
+        <DeleteConfirmationModal
+          session={sessionToDelete}
+          templateName={getTemplateName(sessionToDelete.templateId)}
+          isDeleting={isDeleting}
+          onConfirm={handleDeleteSession}
+          onCancel={() => setSessionToDelete(null)}
+        />
       )}
 
       {/* Session Detail Modal */}
@@ -215,6 +192,228 @@ function EmptyState() {
         <Button variant="secondary">EDZÉS INDÍTÁSA</Button>
       </Link>
     </div>
+  )
+}
+
+interface SwipeableSessionCardProps {
+  session: SessionSummary
+  onOpen: () => void
+  onDelete: () => void
+  getTemplateName: (templateId: string) => string
+  getMuscleColor: (templateId: string) => string
+  calculateDuration: (start: Date, end?: Date) => number
+}
+
+function SwipeableSessionCard({
+  session,
+  onOpen,
+  onDelete,
+  getTemplateName,
+  getMuscleColor,
+  calculateDuration,
+}: SwipeableSessionCardProps) {
+  const x = useMotionValue(0)
+  const deleteOpacity = useTransform(x, [-100, -60], [1, 0])
+  const deleteScale = useTransform(x, [-100, -60], [1, 0.8])
+
+  const duration = calculateDuration(session.startedAt, session.completedAt)
+  const muscleColor = getMuscleColor(session.templateId)
+
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (info.offset.x < -80) {
+      onDelete()
+    }
+  }
+
+  return (
+    <div className="relative overflow-hidden">
+      {/* Delete background */}
+      <motion.div
+        className="absolute inset-y-0 right-0 w-24 bg-danger flex items-center justify-center"
+        style={{ opacity: deleteOpacity, scale: deleteScale }}
+      >
+        <svg
+          className="w-6 h-6 text-white"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="square"
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+          />
+        </svg>
+      </motion.div>
+
+      {/* Swipeable card */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -100, right: 0 }}
+        dragElastic={0.1}
+        onDragEnd={handleDragEnd}
+        style={{ x }}
+        className="relative bg-bg-primary"
+      >
+        <button onClick={onOpen} className="w-full text-left">
+          <div
+            className={cn(
+              'p-4 border border-text-muted/20 bg-bg-secondary',
+              'hover:border-accent/50 transition-all duration-100',
+              'flex items-stretch gap-4'
+            )}
+          >
+            {/* Muscle color bar */}
+            <div
+              className="w-1 self-stretch"
+              style={{ backgroundColor: muscleColor }}
+            />
+
+            {/* Content */}
+            <div className="flex-1">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-display font-bold text-text-primary uppercase tracking-wide">
+                    {getTemplateName(session.templateId)}
+                  </h3>
+                  <p className="text-2xs text-text-muted mt-1">
+                    {format(new Date(session.date), 'yyyy. MMMM d.', { locale: hu })}
+                    {' · '}
+                    {formatDistanceToNow(new Date(session.date), {
+                      addSuffix: true,
+                      locale: hu,
+                    })}
+                  </p>
+                </div>
+
+                {/* Stats */}
+                <div className="text-right">
+                  <p className="font-mono text-lg font-bold text-accent">
+                    {session.totalSets}
+                  </p>
+                  <p className="text-2xs text-text-muted uppercase tracking-wider">
+                    sorozat
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom row */}
+              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-text-muted/10">
+                <div className="flex items-center gap-1">
+                  <span className="font-mono text-sm text-text-secondary">
+                    {session.exerciseCount}
+                  </span>
+                  <span className="text-2xs text-text-muted">gyakorlat</span>
+                </div>
+                {duration > 0 && (
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-sm text-text-secondary">
+                      {duration}
+                    </span>
+                    <span className="text-2xs text-text-muted">perc</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Arrow */}
+            <div className="flex items-center">
+              <svg
+                className="w-5 h-5 text-text-muted"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="square" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </button>
+      </motion.div>
+    </div>
+  )
+}
+
+interface DeleteConfirmationModalProps {
+  session: SessionSummary
+  templateName: string
+  isDeleting: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function DeleteConfirmationModal({
+  session,
+  templateName,
+  isDeleting,
+  onConfirm,
+  onCancel,
+}: DeleteConfirmationModalProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-bg-primary/95 z-50 flex items-center justify-center p-6"
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-bg-secondary border-2 border-danger/50 p-6 max-w-sm w-full"
+      >
+        {/* Warning icon */}
+        <div className="w-14 h-14 bg-danger/20 flex items-center justify-center mx-auto mb-4">
+          <svg
+            className="w-8 h-8 text-danger"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="square"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+        </div>
+
+        <h2 className="font-display text-xl font-bold uppercase tracking-wide text-center mb-2">
+          Edzés törlése?
+        </h2>
+        <p className="text-text-muted text-center mb-2">
+          <span className="font-semibold text-text-primary">{templateName}</span>
+        </p>
+        <p className="text-text-muted text-sm text-center mb-6">
+          {format(new Date(session.date), 'yyyy. MMMM d.', { locale: hu })}
+          {' · '}
+          {session.totalSets} sorozat
+        </p>
+
+        <p className="text-danger text-sm text-center mb-6 p-3 bg-danger/10 border border-danger/30">
+          Ez a művelet nem visszavonható! Az összes rögzített sorozat törlésre kerül.
+        </p>
+
+        <div className="flex gap-4">
+          <Button
+            variant="ghost"
+            className="flex-1"
+            onClick={onCancel}
+            disabled={isDeleting}
+          >
+            Mégse
+          </Button>
+          <Button
+            variant="primary"
+            className="flex-1 !bg-danger hover:!bg-danger/80"
+            onClick={onConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? 'Törlés...' : 'Törlés'}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   )
 }
 
