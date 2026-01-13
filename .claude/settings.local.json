@@ -33,7 +33,10 @@
       "Bash(__NEW_LINE_68ca606c93e3c2b7__ echo \"All re-downloads complete!\")",
       "Bash(curl:*)",
       "Bash(__NEW_LINE_44d1ac2614fbef41__ echo \"\")",
-      "Bash(CLOUDFLARE_API_TOKEN=\"qhKh4kX89UTbI8SFuUjkQkGZvZUA0ii8eWgQBom6\" CLOUDFLARE_ACCOUNT_ID=\"f7644fa9bba2456e9b3bde20a0855c99\" npx wrangler:*)"
+      "Bash(CLOUDFLARE_API_TOKEN=\"qhKh4kX89UTbI8SFuUjkQkGZvZUA0ii8eWgQBom6\" CLOUDFLARE_ACCOUNT_ID=\"f7644fa9bba2456e9b3bde20a0855c99\" npx wrangler:*)",
+      "Bash(/tmp/get_exercise.sh:*)",
+      "Bash(/tmp/get_exercise_ids.sh:*)",
+      "Bash(__NEW_LINE_32fd36639ca837cf__ sleep 1)"
     ],
     "deny": [],
     "ask": []

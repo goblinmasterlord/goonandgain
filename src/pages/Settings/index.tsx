@@ -9,6 +9,8 @@ import {
   migrateLocalDataToSupabase,
   isMigrated,
   changeRecoveryPin,
+  checkProfileNameAvailable,
+  registerProfile,
   isOnline,
 } from '@/lib/sync'
 import type { SyncState } from '@/lib/sync'
@@ -70,6 +72,16 @@ export function SettingsPage() {
   const [pinChangeError, setPinChangeError] = useState<string | null>(null)
   const [isPinChanging, setIsPinChanging] = useState(false)
 
+  // Profile setup state (for users without profileName)
+  const [showProfileSetup, setShowProfileSetup] = useState(false)
+  const [setupProfileName, setSetupProfileName] = useState('')
+  const [setupPin, setSetupPin] = useState('')
+  const [setupConfirmPin, setSetupConfirmPin] = useState('')
+  const [isCheckingName, setIsCheckingName] = useState(false)
+  const [nameAvailable, setNameAvailable] = useState<boolean | null>(null)
+  const [profileSetupError, setProfileSetupError] = useState<string | null>(null)
+  const [isSettingUpProfile, setIsSettingUpProfile] = useState(false)
+
   useEffect(() => {
     loadUser()
     setHasApiKey(hasGeminiApiKey())
@@ -78,6 +90,35 @@ export function SettingsPage() {
     const unsubscribe = subscribeSyncState(setSyncState)
     return () => unsubscribe()
   }, [])
+
+  // Debounced profile name availability check
+  useEffect(() => {
+    if (!setupProfileName || setupProfileName.length < 2) {
+      setNameAvailable(null)
+      return
+    }
+
+    // Validate format first
+    const validPattern = /^[a-zA-ZáéíóöőúüűÁÉÍÓÖŐÚÜŰ0-9\s]+$/
+    if (!validPattern.test(setupProfileName)) {
+      setNameAvailable(null)
+      return
+    }
+
+    setIsCheckingName(true)
+    const timer = setTimeout(async () => {
+      try {
+        const available = await checkProfileNameAvailable(setupProfileName)
+        setNameAvailable(available)
+      } catch {
+        setNameAvailable(null)
+      } finally {
+        setIsCheckingName(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [setupProfileName])
 
   const loadUser = async () => {
     setIsLoading(true)
@@ -231,6 +272,85 @@ export function SettingsPage() {
     setPinChangeError(null)
   }
 
+  const handleProfileSetup = async () => {
+    if (!user) return
+
+    // Validate profile name
+    const trimmedName = setupProfileName.trim()
+    if (trimmedName.length < 2 || trimmedName.length > 20) {
+      setProfileSetupError('A profilnév 2-20 karakter hosszú legyen')
+      return
+    }
+
+    const validPattern = /^[a-zA-ZáéíóöőúüűÁÉÍÓÖŐÚÜŰ0-9\s]+$/
+    if (!validPattern.test(trimmedName)) {
+      setProfileSetupError('Csak betűk, számok és szóközök használhatók')
+      return
+    }
+
+    if (nameAvailable === false) {
+      setProfileSetupError('Ez a profilnév már foglalt')
+      return
+    }
+
+    // Validate PIN
+    if (setupPin.length !== 4) {
+      setProfileSetupError('A PIN-nek 4 számjegyűnek kell lennie')
+      return
+    }
+
+    if (setupPin !== setupConfirmPin) {
+      setProfileSetupError('A PIN kódok nem egyeznek')
+      return
+    }
+
+    if (!isOnline()) {
+      setProfileSetupError('Nincs internetkapcsolat')
+      return
+    }
+
+    setIsSettingUpProfile(true)
+    setProfileSetupError(null)
+
+    try {
+      // First migrate data if not done yet
+      if (!isMigrated()) {
+        await migrateLocalDataToSupabase()
+      }
+
+      // Register profile with PIN
+      const success = await registerProfile(user.id, trimmedName, setupPin)
+
+      if (success) {
+        // Update local user record with profile name
+        await db.users.update(user.id, { profileName: trimmedName })
+        setUser({ ...user, profileName: trimmedName })
+
+        // Reset form and close
+        setShowProfileSetup(false)
+        setSetupProfileName('')
+        setSetupPin('')
+        setSetupConfirmPin('')
+        setNameAvailable(null)
+      } else {
+        setProfileSetupError('Nem sikerült a profil létrehozása. Próbáld újra.')
+      }
+    } catch (err) {
+      setProfileSetupError(err instanceof Error ? err.message : 'Hiba történt')
+    } finally {
+      setIsSettingUpProfile(false)
+    }
+  }
+
+  const closeProfileSetupModal = () => {
+    setShowProfileSetup(false)
+    setSetupProfileName('')
+    setSetupPin('')
+    setSetupConfirmPin('')
+    setNameAvailable(null)
+    setProfileSetupError(null)
+  }
+
   const getSyncStatusText = () => {
     if (!isSupabaseConfigured()) return 'Nincs beállítva'
     if (syncState.status === 'offline') return 'Offline'
@@ -337,6 +457,28 @@ export function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Profile Setup - for users without profile name */}
+        {!user?.profileName && isSupabaseConfigured() && (
+          <div className="p-4 bg-bg-secondary border border-accent/30 mb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-2xs font-display uppercase tracking-wider text-accent">
+                  Felhő profil
+                </p>
+                <p className="text-text-secondary text-sm mt-1">
+                  Állíts be profilnevet és PIN kódot az adataid felhőbe mentéséhez és visszaállításához.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowProfileSetup(true)}
+                className="ml-3 px-3 py-1.5 bg-accent text-bg-primary text-2xs font-display uppercase tracking-wider font-bold hover:bg-accent/90 transition-colors"
+              >
+                BEÁLLÍT
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Profile Name */}
         {user?.profileName && (
@@ -641,6 +783,132 @@ export function SettingsPage() {
                 disabled={isPinChanging || currentPin.length !== 4 || newPin.length !== 4 || confirmNewPin.length !== 4}
               >
                 {isPinChanging ? 'MENTÉS...' : 'MENTÉS'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Setup Modal */}
+      {showProfileSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className="w-full max-w-sm bg-bg-secondary border-2 border-text-muted/30 p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-display text-lg font-bold uppercase tracking-wide text-text-primary mb-2">
+              Felhő profil beállítása
+            </h3>
+            <p className="text-text-secondary text-sm mb-4">
+              A profilnév és PIN kód segítségével visszaállíthatod az adataidat egy új eszközön.
+            </p>
+
+            <div className="space-y-4 mb-4">
+              {/* Profile Name Input */}
+              <div>
+                <label className="text-2xs font-display uppercase tracking-wider text-text-muted block mb-2">
+                  Profilnév
+                </label>
+                <input
+                  type="text"
+                  value={setupProfileName}
+                  onChange={(e) => {
+                    setSetupProfileName(e.target.value)
+                    setProfileSetupError(null)
+                  }}
+                  maxLength={20}
+                  className="w-full p-3 bg-bg-elevated border border-text-muted/30 font-display text-lg text-text-primary focus:border-accent focus:outline-none"
+                  placeholder="pl. Marci123"
+                />
+                <div className="mt-1 h-4">
+                  {isCheckingName && (
+                    <span className="text-2xs text-text-muted">Ellenőrzés...</span>
+                  )}
+                  {!isCheckingName && nameAvailable === true && setupProfileName.length >= 2 && (
+                    <span className="text-2xs text-green-500">✓ Ez a név elérhető</span>
+                  )}
+                  {!isCheckingName && nameAvailable === false && (
+                    <span className="text-2xs text-red-500">Ez a név már foglalt</span>
+                  )}
+                </div>
+              </div>
+
+              {/* PIN Input */}
+              <div>
+                <label className="text-2xs font-display uppercase tracking-wider text-text-muted block mb-2">
+                  4 számjegyű PIN
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={setupPin}
+                  onChange={(e) => {
+                    const filtered = e.target.value.replace(/\D/g, '').slice(0, 4)
+                    setSetupPin(filtered)
+                    setProfileSetupError(null)
+                  }}
+                  className="w-full p-3 bg-bg-elevated border border-text-muted/30 font-mono text-lg text-text-primary text-center tracking-[0.5em] focus:border-accent focus:outline-none"
+                  placeholder="••••"
+                />
+              </div>
+
+              {/* Confirm PIN Input */}
+              <div>
+                <label className="text-2xs font-display uppercase tracking-wider text-text-muted block mb-2">
+                  PIN megerősítése
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={setupConfirmPin}
+                  onChange={(e) => {
+                    const filtered = e.target.value.replace(/\D/g, '').slice(0, 4)
+                    setSetupConfirmPin(filtered)
+                    setProfileSetupError(null)
+                  }}
+                  className="w-full p-3 bg-bg-elevated border border-text-muted/30 font-mono text-lg text-text-primary text-center tracking-[0.5em] focus:border-accent focus:outline-none"
+                  placeholder="••••"
+                />
+                {setupPin.length === 4 && setupConfirmPin.length === 4 && (
+                  <div className="mt-1">
+                    {setupPin === setupConfirmPin ? (
+                      <span className="text-2xs text-green-500">✓ PIN megerősítve</span>
+                    ) : (
+                      <span className="text-2xs text-red-500">A PIN kódok nem egyeznek</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div className="p-3 bg-accent/10 border border-accent/30 mb-4">
+              <p className="text-2xs text-accent">
+                ⚠️ Jegyezd meg a profilnevet és PIN kódot! Ezek nélkül nem tudod visszaállítani az adataidat.
+              </p>
+            </div>
+
+            {profileSetupError && (
+              <p className="text-sm text-danger mb-4">{profileSetupError}</p>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="ghost" onClick={closeProfileSetupModal} disabled={isSettingUpProfile}>
+                MÉGSE
+              </Button>
+              <Button
+                onClick={handleProfileSetup}
+                disabled={
+                  isSettingUpProfile ||
+                  setupProfileName.length < 2 ||
+                  setupPin.length !== 4 ||
+                  setupConfirmPin.length !== 4 ||
+                  setupPin !== setupConfirmPin ||
+                  nameAvailable === false
+                }
+              >
+                {isSettingUpProfile ? 'MENTÉS...' : 'MENTÉS'}
               </Button>
             </div>
           </div>
