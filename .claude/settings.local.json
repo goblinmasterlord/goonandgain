@@ -39,7 +39,8 @@
       "Bash(__NEW_LINE_32fd36639ca837cf__ sleep 1)",
       "Bash(ls:*)",
       "Bash(npx wrangler --version)",
-      "Bash(npx wrangler r2 object put:*)"
+      "Bash(npx wrangler r2 object put:*)",
+      "Bash(sort:*)"
     ],
     "deny": [],
     "ask": []

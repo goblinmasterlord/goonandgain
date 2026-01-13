@@ -10,13 +10,16 @@
 
 const MEDIA_BASE_URL = import.meta.env.VITE_EXERCISE_MEDIA_BASE_URL || ''
 
+// Increment this version to bust browser/PWA cache when GIFs are updated
+const MEDIA_CACHE_VERSION = 2
+
 /**
  * Get the GIF URL for an exercise
  * GIFs are preferred as they show the full movement animation
  */
 export function getExerciseGifUrl(exerciseId: string): string {
   if (!MEDIA_BASE_URL) return ''
-  return `${MEDIA_BASE_URL}/${exerciseId}.gif`
+  return `${MEDIA_BASE_URL}/${exerciseId}.gif?v=${MEDIA_CACHE_VERSION}`
 }
 
 /**
@@ -26,7 +29,7 @@ export function getExerciseGifUrl(exerciseId: string): string {
  */
 export function getExerciseImageUrl(exerciseId: string, index = 0): string {
   if (!MEDIA_BASE_URL) return ''
-  return `${MEDIA_BASE_URL}/${exerciseId}-${index}.jpg`
+  return `${MEDIA_BASE_URL}/${exerciseId}-${index}.jpg?v=${MEDIA_CACHE_VERSION}`
 }
 
 /**

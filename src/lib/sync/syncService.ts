@@ -60,7 +60,7 @@ export async function queueSync(
   })
 
   // Update pending count
-  const pendingCount = await db.syncQueue.where('syncedAt').equals(undefined as unknown as Date).count()
+  const pendingCount = await db.syncQueue.filter((item) => !item.syncedAt).count()
   updateSyncState({ pendingCount })
 
   // Trigger sync if online
