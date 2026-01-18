@@ -27,40 +27,53 @@ export function ExerciseDetailPage() {
   const primaryMuscle = muscleGroups.find((m) => m.id === exercise.muscleGroupPrimary)
   const equipment = equipmentTypes.find((e) => e.id === exercise.equipment)
 
+  // Adaptive title sizing based on text length
+  const getTitleSize = (text: string) => {
+    const len = text.length
+    if (len <= 15) return 'text-xl'
+    if (len <= 25) return 'text-lg'
+    if (len <= 35) return 'text-base'
+    return 'text-sm'
+  }
+
   return (
     <div className="min-h-screen bg-bg-primary pb-20">
-      {/* Header with back button */}
-      <header className="px-5 pt-6 pb-4 border-b-2 border-text-muted/20">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-text-secondary hover:text-accent transition-colors mb-4"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+      {/* Sticky Header with back button */}
+      <header className="sticky top-0 z-40 bg-bg-primary/90 backdrop-blur-md border-b-2 border-text-muted/20">
+        <div className="px-4 py-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-text-secondary hover:text-accent transition-colors mb-2 -ml-1"
           >
-            <path strokeLinecap="square" d="M15 19l-7-7 7-7" />
-          </svg>
-          <span className="text-xs font-display uppercase tracking-wider">Vissza</span>
-        </button>
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="square" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-xs font-display uppercase tracking-wider">Vissza</span>
+          </button>
 
-        <div className="flex items-start gap-4">
-          {/* Muscle color indicator */}
-          <div
-            className="w-2 h-16 flex-shrink-0 mt-1"
-            style={{ backgroundColor: primaryMuscle?.color }}
-          />
-          <div className="flex-1">
-            <p className="text-2xs font-display uppercase tracking-[0.3em] text-text-muted mb-1">
-              {primaryMuscle?.nameHu}
-            </p>
-            <h1 className="font-display text-2xl font-extrabold uppercase tracking-wide text-text-primary">
-              {exercise.nameHu}
-            </h1>
-            <p className="text-text-muted text-sm mt-1">{exercise.nameEn}</p>
+          <div className="flex items-start gap-3">
+            {/* Muscle color indicator */}
+            <div
+              className="w-1.5 h-12 flex-shrink-0 mt-0.5"
+              style={{ backgroundColor: primaryMuscle?.color }}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-0.5">
+                {primaryMuscle?.nameHu}
+              </p>
+              <h1
+                className={`font-display font-extrabold uppercase tracking-wide text-text-primary leading-tight ${getTitleSize(exercise.nameHu)}`}
+                title={exercise.nameHu}
+              >
+                {exercise.nameHu}
+              </h1>
+            </div>
           </div>
         </div>
       </header>

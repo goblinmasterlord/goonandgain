@@ -356,9 +356,11 @@ export function CoachPage() {
   if (showApiKeyInput) {
     return (
       <div className="min-h-screen bg-bg-primary flex flex-col">
-        <header className="px-4 pt-5 pb-3 border-b-2 border-text-muted/20">
-          <h1 className="font-display text-xl font-extrabold uppercase tracking-wide">Coach Bebi</h1>
-          <p className="text-text-muted text-xs mt-0.5">AI edzéstanácsadó</p>
+        <header className="sticky top-0 z-40 bg-bg-primary/90 backdrop-blur-md border-b-2 border-text-muted/20">
+          <div className="px-4 py-3">
+            <h1 className="font-display text-lg font-extrabold uppercase tracking-wide">Coach Bebi</h1>
+            <p className="text-text-muted text-xs mt-0.5">AI edzéstanácsadó</p>
+          </div>
         </header>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6">
@@ -408,13 +410,13 @@ export function CoachPage() {
 
   return (
     <div className="min-h-screen bg-bg-primary flex flex-col pb-20">
-      {/* Header */}
-      <header className="px-4 pt-5 pb-3 border-b-2 border-text-muted/20">
-        <div className="flex items-center justify-between">
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-40 bg-bg-primary/90 backdrop-blur-md border-b-2 border-text-muted/20">
+        <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BebiAvatar size="md" />
+            <BebiAvatar size="sm" />
             <div>
-              <h1 className="font-display text-lg font-extrabold uppercase tracking-wide">Coach Bebi</h1>
+              <h1 className="font-display text-base font-extrabold uppercase tracking-wide">Coach Bebi</h1>
               <p className="text-text-muted text-xs">AI edzéstanácsadó</p>
             </div>
           </div>

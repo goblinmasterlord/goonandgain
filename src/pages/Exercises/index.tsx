@@ -55,17 +55,19 @@ export function ExercisesPage() {
 
   return (
     <div className="min-h-screen bg-bg-primary pb-20">
-      {/* Header */}
-      <header className="px-4 pt-5 pb-3 border-b-2 border-text-muted/20">
-        <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-0.5">
-          KÖNYVTÁR
-        </p>
-        <h1 className="font-display text-xl font-extrabold uppercase tracking-wide">
-          Gyakorlatok
-        </h1>
-        <p className="text-text-secondary text-xs mt-0.5">
-          {allExercises.length} gyakorlat
-        </p>
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-40 bg-bg-primary/90 backdrop-blur-md border-b-2 border-text-muted/20">
+        <div className="px-4 py-3">
+          <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-0.5">
+            KÖNYVTÁR
+          </p>
+          <h1 className="font-display text-lg font-extrabold uppercase tracking-wide">
+            Gyakorlatok
+          </h1>
+          <p className="text-text-secondary text-xs mt-0.5">
+            {allExercises.length} gyakorlat
+          </p>
+        </div>
       </header>
 
       {/* Search */}
