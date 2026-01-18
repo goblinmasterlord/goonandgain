@@ -14,6 +14,7 @@ import {
   getCustomTemplates,
   getCustomTemplatesForDay,
 } from '@/lib/db'
+import { WeeklyReviewModal } from '@/components/ai'
 import type { WorkoutTemplate, SplitType, CustomTemplate } from '@/types'
 
 // Muscle colors for template cards
@@ -84,6 +85,7 @@ export function HomePage() {
     sessionsThisWeek: 0,
     totalSetsThisWeek: 0,
   })
+  const [isWeeklyReviewOpen, setIsWeeklyReviewOpen] = useState(false)
 
   // Load data on mount
   useEffect(() => {
@@ -194,10 +196,17 @@ export function HomePage() {
           weeklyStats={weeklyStats}
           availableTemplates={availableTemplates}
           customTemplates={customTemplates}
+          onOpenWeeklyReview={() => setIsWeeklyReviewOpen(true)}
         />
       ) : (
         <EmptyState availableTemplates={availableTemplates} customTemplates={customTemplates} />
       )}
+
+      {/* Weekly Review Modal */}
+      <WeeklyReviewModal
+        isOpen={isWeeklyReviewOpen}
+        onClose={() => setIsWeeklyReviewOpen(false)}
+      />
     </div>
   )
 }
@@ -420,10 +429,12 @@ function ActiveUserView({
   weeklyStats,
   availableTemplates,
   customTemplates,
+  onOpenWeeklyReview,
 }: {
   weeklyStats: { sessionsThisWeek: number; totalSetsThisWeek: number }
   availableTemplates: WorkoutTemplate[]
   customTemplates: CustomTemplate[]
+  onOpenWeeklyReview: () => void
 }) {
   return (
     <>
@@ -452,6 +463,25 @@ function ActiveUserView({
             <p className="stat-label">SOROZAT</p>
           </div>
         </div>
+
+        {/* Weekly Review Button */}
+        {weeklyStats.totalSetsThisWeek > 0 && (
+          <motion.button
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            onClick={onOpenWeeklyReview}
+            className="w-full mt-4 p-3 bg-accent/10 border border-accent/50 hover:bg-accent/20 transition-colors flex items-center justify-center gap-2"
+          >
+            <img src="/bebi-avatar.png" alt="" className="w-6 h-6 object-contain" />
+            <span className="font-display text-sm font-bold uppercase tracking-wide text-accent">
+              HETI ÉRTÉKELÉS
+            </span>
+            <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="square" d="M9 5l7 7-7 7" />
+            </svg>
+          </motion.button>
+        )}
       </section>
 
       {/* Custom Templates section */}

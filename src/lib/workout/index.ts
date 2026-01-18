@@ -11,6 +11,7 @@ export {
 
 export {
   BENCHMARK_LIFTS,
+  STRENGTH_STANDARDS,
   calculateBWRatio,
   getStrengthLevel,
   getNextLevel,

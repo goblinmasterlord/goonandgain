@@ -45,6 +45,74 @@ export interface VolumeData {
   avgRir: number
 }
 
+// Enhanced data types for comprehensive weekly review
+export interface WeeklyReviewData {
+  // Basic stats
+  totalSessions: number
+  totalSets: number
+  totalReps: number
+  totalWeightLifted: number // kg
+  avgWorkoutDuration: number // minutes
+
+  // Consistency
+  plannedWorkouts: number
+  completedWorkouts: number
+  completionRate: number
+  missedWorkoutTypes: string[]
+
+  // Volume per muscle
+  volumeByMuscle: {
+    muscle: string
+    sets: number
+    avgRir: number
+    status: 'low' | 'optimal' | 'high'
+    minRecommended: number
+    maxRecommended: number
+    lastWeekSets: number
+    changePercent: number
+  }[]
+
+  // Intensity analysis
+  avgRir: number
+  rirDistribution: { rir: number; count: number; percent: number }[]
+  lastWeekAvgRir: number
+  rirTrend: 'increasing' | 'stable' | 'decreasing' // increasing RIR = getting easier, decreasing = fatigue
+
+  // Progression tracking
+  progressions: { exercise: string; oldWeight: number; newWeight: number; increase: number }[]
+  regressions: { exercise: string; oldWeight: number; newWeight: number; decrease: number }[]
+  stalls: { exercise: string; weight: number; weeksStalled: number }[]
+  readyForProgression: { exercise: string; currentWeight: number; suggestedWeight: number; reason: string }[]
+
+  // PRs and top performances
+  prsThisWeek: { exercise: string; weight: number; reps: number }[]
+  topSets: { exercise: string; weight: number; reps: number; estimated1RM: number }[]
+
+  // Skipped work
+  skippedSets: number
+  completionRateByExercise: { exercise: string; completed: number; expected: number; rate: number }[]
+
+  // Strength benchmarks
+  strengthLevels: {
+    lift: string
+    estimated1RM: number
+    bwRatio: number
+    level: string
+    nextLevelTarget: number
+  }[]
+
+  // Comparison to last week
+  lastWeekTotalSets: number
+  lastWeekTotalWeight: number
+  volumeChange: number // percent
+
+  // Recommendations
+  undertrainedMuscles: string[]
+  overtrainedMuscles: string[]
+  needsDeload: boolean
+  deloadReason?: string
+}
+
 export interface SessionSummary {
   templateName: string
   totalSets: number
@@ -176,6 +244,158 @@ STÍLUS:
 - Legyél kemény, de az a fajta kemény aki ki akar hozni belőle mindent
 - Ha valami nagyon jó volt: "Na VÉGRE, ezt már régen várom!"
 - Ha valami szar: "Ez ELFOGADHATATLAN. De megoldjuk."
+
+Magyarul válaszolj, NINCS KEGYELEM!`
+}
+
+// Comprehensive weekly review prompt
+export function buildComprehensiveWeeklyReviewPrompt(
+  profile: UserProfile,
+  data: WeeklyReviewData
+): string {
+  // Build volume section
+  const volumeLines = data.volumeByMuscle.map((v) => {
+    const statusEmoji = v.status === 'low' ? '⚠️' : v.status === 'high' ? '🔴' : '✅'
+    const changeStr = v.changePercent > 0 ? `+${v.changePercent.toFixed(0)}%` : `${v.changePercent.toFixed(0)}%`
+    return `- ${v.muscle}: ${v.sets} sorozat ${statusEmoji} (cél: ${v.minRecommended}-${v.maxRecommended}) | múlt hét: ${v.lastWeekSets} (${changeStr}) | átlag RIR: ${v.avgRir.toFixed(1)}`
+  })
+
+  // Build RIR distribution
+  const rirDistLines = data.rirDistribution
+    .filter((r) => r.count > 0)
+    .map((r) => `RIR ${r.rir}: ${r.count} sorozat (${r.percent.toFixed(0)}%)`)
+
+  // Build progressions section
+  const progressionLines = data.progressions.length > 0
+    ? data.progressions.map((p) => `✅ ${p.exercise}: ${p.oldWeight}kg → ${p.newWeight}kg (+${p.increase}kg)`)
+    : ['Nincs súlynövekedés ezen a héten']
+
+  // Build regressions section
+  const regressionLines = data.regressions.length > 0
+    ? data.regressions.map((r) => `❌ ${r.exercise}: ${r.oldWeight}kg → ${r.newWeight}kg (${r.decrease}kg)`)
+    : []
+
+  // Build stalls section
+  const stallLines = data.stalls.length > 0
+    ? data.stalls.map((s) => `⏸️ ${s.exercise}: ${s.weight}kg (${s.weeksStalled} hete stagnál)`)
+    : []
+
+  // Build ready for progression
+  const readyLines = data.readyForProgression.length > 0
+    ? data.readyForProgression.map((r) => `🎯 ${r.exercise}: ${r.currentWeight}kg → próbálj ${r.suggestedWeight}kg (${r.reason})`)
+    : []
+
+  // Build PRs section
+  const prLines = data.prsThisWeek.length > 0
+    ? data.prsThisWeek.map((pr) => `🏆 ${pr.exercise}: ${pr.weight}kg × ${pr.reps}`)
+    : ['Nincs új rekord ezen a héten']
+
+  // Build top sets section
+  const topSetLines = data.topSets.slice(0, 5).map(
+    (t) => `${t.exercise}: ${t.weight}kg × ${t.reps} (becsült 1RM: ${t.estimated1RM.toFixed(0)}kg)`
+  )
+
+  // Build strength levels section
+  const strengthLines = data.strengthLevels.map(
+    (s) => `- ${s.lift}: ${s.estimated1RM.toFixed(0)}kg (${s.bwRatio.toFixed(2)}x BW) - ${s.level} | következő szint: ${s.nextLevelTarget.toFixed(0)}kg`
+  )
+
+  // RIR trend text
+  const rirTrendText = data.rirTrend === 'decreasing'
+    ? '📉 CSÖKKENŐ (fáradtság halmozódik!)'
+    : data.rirTrend === 'increasing'
+    ? '📈 NÖVEKVŐ (könnyebb lesz - talán túl könnyű?)'
+    : '➡️ STABIL'
+
+  return `${buildUserProfileContext(profile)}
+
+═══════════════════════════════════════════════════════════════
+                    HETI ÖSSZESÍTÉS
+═══════════════════════════════════════════════════════════════
+
+📊 ALAPSTATISZTIKÁK:
+- Edzések: ${data.totalSessions} db (terv: ${data.plannedWorkouts})
+- Összes sorozat: ${data.totalSets} (múlt hét: ${data.lastWeekTotalSets}, változás: ${data.volumeChange > 0 ? '+' : ''}${data.volumeChange.toFixed(0)}%)
+- Összes ismétlés: ${data.totalReps}
+- Összes megemelt súly: ${(data.totalWeightLifted / 1000).toFixed(1)} tonna (múlt hét: ${(data.lastWeekTotalWeight / 1000).toFixed(1)} tonna)
+- Átlagos edzésidő: ${data.avgWorkoutDuration} perc
+${data.missedWorkoutTypes.length > 0 ? `- Kihagyott edzéstípusok: ${data.missedWorkoutTypes.join(', ')}` : ''}
+
+═══════════════════════════════════════════════════════════════
+                    VOLUMEN IZOMCSOPORTONKÉNT
+═══════════════════════════════════════════════════════════════
+
+${volumeLines.join('\n')}
+
+${data.undertrainedMuscles.length > 0 ? `⚠️ ALULEDZETT: ${data.undertrainedMuscles.join(', ')}` : ''}
+${data.overtrainedMuscles.length > 0 ? `🔴 TÚLEDZETT: ${data.overtrainedMuscles.join(', ')}` : ''}
+
+═══════════════════════════════════════════════════════════════
+                    INTENZITÁS ELEMZÉS
+═══════════════════════════════════════════════════════════════
+
+Átlagos RIR: ${data.avgRir.toFixed(1)} (múlt hét: ${data.lastWeekAvgRir.toFixed(1)})
+RIR trend: ${rirTrendText}
+
+RIR eloszlás:
+${rirDistLines.join('\n')}
+
+${data.needsDeload ? `🚨 DELOAD AJÁNLOTT! Ok: ${data.deloadReason}` : ''}
+
+═══════════════════════════════════════════════════════════════
+                    PROGRESSZIÓ
+═══════════════════════════════════════════════════════════════
+
+SÚLYNÖVEKEDÉSEK:
+${progressionLines.join('\n')}
+
+${regressionLines.length > 0 ? `CSÖKKENÉSEK:\n${regressionLines.join('\n')}` : ''}
+
+${stallLines.length > 0 ? `STAGNÁLÁSOK:\n${stallLines.join('\n')}` : ''}
+
+${readyLines.length > 0 ? `KÉSZEN ÁLL EMELÉSRE:\n${readyLines.join('\n')}` : ''}
+
+═══════════════════════════════════════════════════════════════
+                    REKORDOK ÉS TOP TELJESÍTMÉNYEK
+═══════════════════════════════════════════════════════════════
+
+ÚJ REKORDOK:
+${prLines.join('\n')}
+
+TOP 5 SOROZAT (becsült 1RM alapján):
+${topSetLines.join('\n')}
+
+═══════════════════════════════════════════════════════════════
+                    ERŐSZINTEK
+═══════════════════════════════════════════════════════════════
+
+${strengthLines.join('\n')}
+
+═══════════════════════════════════════════════════════════════
+
+FELADAT: Írj egy MAXIMUM 1 oldalas heti értékelést Coach Bebi stílusában!
+
+KÖTELEZŐ STRUKTÚRA (ezeket a címeket használd):
+
+💪 **HÉTVÉGI ROAST** (2-3 mondat összefoglaló - szólj be de építs!)
+
+📊 **A SZÁMOK NEM HAZUDNAK** (volumen és intenzitás elemzés - konkrétan mit csinált jól/rosszul)
+
+🔥 **PROGRESSZIÓ CHECK** (súlynövekedések értékelése, stagnálások kezelése)
+
+⚠️ **FIGYELJ TESÓ!** (problémák: aluledzett izmok, túl magas/alacsony RIR, fáradtság jelek)
+
+🎯 **JÖVŐ HETI PARANCSOK** (3-5 KONKRÉT utasítás: milyen súlyokat próbáljon, melyik izomra figyeljen)
+
+STÍLUS SZABÁLYOK:
+- CAPS LOCK a fontos dolgoknál
+- Roastolj de adj megoldást
+- Számokra hivatkozz
+- Maximum 400-500 szó összesen
+- Ha valami nagyon szar: "Ez ELFOGADHATATLAN, de megoldjuk."
+- Ha valami jó: "Na VÉGRE!" de ne hízelegj túl sokat
+- Ha deload kell: ÜVÖLTS
+- Legyél vicces de informatív
 
 Magyarul válaszolj, NINCS KEGYELEM!`
 }
