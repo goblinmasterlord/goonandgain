@@ -44,6 +44,14 @@ export interface StrengthBenchmark {
 
 const LEVEL_ORDER: StrengthLevel[] = ['beginner', 'intermediate', 'advanced', 'elite']
 
+// Exported strength standards for use in other modules
+export const STRENGTH_STANDARDS = {
+  squat: { beginner: 1.0, intermediate: 1.5, advanced: 2.0, elite: 2.5 },
+  bench: { beginner: 0.75, intermediate: 1.2, advanced: 1.5, elite: 1.8 },
+  deadlift: { beginner: 1.25, intermediate: 2.0, advanced: 2.5, elite: 3.0 },
+  ohp: { beginner: 0.5, intermediate: 0.8, advanced: 1.0, elite: 1.2 },
+} as const
+
 const LEVEL_NAMES_HU: Record<StrengthLevel, string> = {
   beginner: 'Kezdő',
   intermediate: 'Középhaladó',
