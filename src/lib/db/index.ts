@@ -175,13 +175,13 @@ export async function getLastSetLogsForExercise(
   const user = await getUser()
   if (!user) return []
 
-  // Get recent sessions for this user
+  // Get recent sessions for this user (sorted newest first)
   const sessions = await db.sessions
     .where('userId')
     .equals(user.id)
     .filter((s) => s.completedAt !== undefined && (!excludeSessionId || s.id !== excludeSessionId))
-    .reverse()
-    .sortBy('date')
+    .toArray()
+    .then((results) => results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
 
   if (sessions.length === 0) return []
 
@@ -228,9 +228,12 @@ export async function getRecentSessions(limit: number = 10): Promise<Session[]> 
     .where('userId')
     .equals(user.id)
     .filter((s) => s.completedAt !== undefined)
-    .reverse()
-    .sortBy('date')
-    .then((sessions) => sessions.slice(0, limit))
+    .toArray()
+    .then((sessions) =>
+      sessions
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, limit)
+    )
 }
 
 // Get session with all its set logs
@@ -382,9 +385,10 @@ export async function getLatestEstimatedMax(exerciseId: string): Promise<number 
     .where('exerciseId')
     .equals(exerciseId)
     .filter((e) => e.userId === user.id)
-    .reverse()
-    .sortBy('calculatedAt')
-    .then((results) => results[0])
+    .toArray()
+    .then((results) =>
+      results.sort((a, b) => new Date(b.calculatedAt).getTime() - new Date(a.calculatedAt).getTime())[0]
+    )
 
   return latest?.estimated1RM ?? null
 }
@@ -400,9 +404,12 @@ export async function getEstimatedMaxHistory(
     .where('exerciseId')
     .equals(exerciseId)
     .filter((e) => e.userId === user.id)
-    .reverse()
-    .sortBy('calculatedAt')
-    .then((results) => results.slice(0, limit))
+    .toArray()
+    .then((results) =>
+      results
+        .sort((a, b) => new Date(b.calculatedAt).getTime() - new Date(a.calculatedAt).getTime())
+        .slice(0, limit)
+    )
 }
 
 // Delete session and all its set logs
@@ -555,8 +562,10 @@ export async function getCustomTemplates(): Promise<CustomTemplate[]> {
   return await db.customTemplates
     .where('userId')
     .equals(user.id)
-    .reverse()
-    .sortBy('createdAt')
+    .toArray()
+    .then((results) =>
+      results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    )
 }
 
 // Get a specific custom template by ID
