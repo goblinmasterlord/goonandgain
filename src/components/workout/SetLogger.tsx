@@ -84,54 +84,71 @@ export function SetLogger() {
 
   const rirOptions: RIR[] = [0, 1, 2, 3, 4]
 
+  // Adaptive title sizing based on text length
+  const getTitleSize = (text: string) => {
+    const len = text.length
+    if (len <= 15) return 'text-lg'
+    if (len <= 25) return 'text-base'
+    if (len <= 35) return 'text-sm'
+    return 'text-xs'
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-bg-primary">
-      {/* Exercise Header */}
-      <header className="px-5 pt-6 pb-4 border-b-2 border-text-muted/20">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-2 h-12"
-              style={{ backgroundColor: primaryMuscle?.color }}
-            />
-            <div>
-              <button
-                onClick={() => setShowOverviewModal(true)}
-                className="text-2xs font-display uppercase tracking-[0.3em] text-text-muted hover:text-accent transition-colors flex items-center gap-1"
-              >
-                {template.nameHu} - {currentExerciseIndex + 1}/{template.exercises.length}
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="square" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <h1 className="font-display text-xl font-extrabold uppercase tracking-wide text-text-primary">
-                {exercise.nameHu}
-              </h1>
+      {/* Sticky Exercise Header */}
+      <header className="sticky top-0 z-40 bg-bg-primary/90 backdrop-blur-md border-b-2 border-text-muted/20">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div
+                className="w-1.5 h-10 flex-shrink-0"
+                style={{ backgroundColor: primaryMuscle?.color }}
+              />
+              <div className="min-w-0 flex-1">
+                <button
+                  onClick={() => setShowOverviewModal(true)}
+                  className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted hover:text-accent transition-colors flex items-center gap-1"
+                >
+                  {template.nameHu} - {currentExerciseIndex + 1}/{template.exercises.length}
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="square" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+                <h1
+                  className={cn(
+                    'font-display font-extrabold uppercase tracking-wide text-text-primary leading-tight',
+                    getTitleSize(exercise.nameHu)
+                  )}
+                  title={exercise.nameHu}
+                >
+                  {exercise.nameHu}
+                </h1>
+              </div>
             </div>
+            <Link
+              to={`/exercises/${exercise.id}`}
+              className="px-2 py-1 border border-text-muted/30 text-2xs font-display uppercase tracking-wider text-text-muted hover:text-accent hover:border-accent transition-colors flex-shrink-0"
+            >
+              INFO
+            </Link>
           </div>
-          <Link
-            to={`/exercises/${exercise.id}`}
-            className="px-3 py-1.5 border border-text-muted/30 text-2xs font-display uppercase tracking-wider text-text-muted hover:text-accent hover:border-accent transition-colors"
-          >
-            INFO
-          </Link>
-        </div>
 
-        {/* Set progress indicator */}
-        <div className="flex gap-1">
-          {Array.from({ length: currentTemplateExercise.targetSets }).map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                'h-1.5 flex-1 transition-all duration-200',
-                i < setsCompletedThisExercise
-                  ? 'bg-accent'
-                  : i === setsCompletedThisExercise
-                    ? 'bg-accent/50'
-                    : 'bg-text-muted/20'
-              )}
-            />
-          ))}
+          {/* Set progress indicator */}
+          <div className="flex gap-1">
+            {Array.from({ length: currentTemplateExercise.targetSets }).map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'h-1.5 flex-1 transition-all duration-200',
+                  i < setsCompletedThisExercise
+                    ? 'bg-accent'
+                    : i === setsCompletedThisExercise
+                      ? 'bg-accent/50'
+                      : 'bg-text-muted/20'
+                )}
+              />
+            ))}
+          </div>
         </div>
       </header>
 

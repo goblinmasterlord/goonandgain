@@ -15,6 +15,7 @@ import {
   getCustomTemplatesForDay,
 } from '@/lib/db'
 import { WeeklyReviewModal } from '@/components/ai'
+import { ActiveWorkoutBanner } from '@/components/workout'
 import type { WorkoutTemplate, SplitType, CustomTemplate } from '@/types'
 
 // Muscle colors for template cards
@@ -153,42 +154,49 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      {/* Hero Header */}
-      <header className="relative px-4 pt-6 pb-4 border-b-2 border-text-muted/20">
-        <div className="flex items-start justify-between">
-          <Link to="/" className="block">
-            <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-0.5">
-              EDZÉSTERVEZŐ
-            </p>
-            <h1 className="font-display text-2xl font-extrabold tracking-tight">
-              <span className="text-text-primary">GOON</span>
-              <span className="text-accent">&</span>
-              <span className="text-text-primary">GAIN</span>
-            </h1>
-          </Link>
-          <div className="flex items-center gap-2">
-            {/* Current split type badge */}
-            <Link
-              to="/settings"
-              className="px-2 py-1 bg-bg-secondary border border-text-muted/30 hover:border-accent transition-colors"
-            >
-              <span className="text-2xs font-display uppercase tracking-wider text-accent">
-                {splitType === 'ppl' ? 'PPL' : 'BRO'}
-              </span>
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-40 bg-bg-primary/90 backdrop-blur-md border-b-2 border-text-muted/20">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="block">
+              <p className="text-2xs font-display uppercase tracking-[0.2em] text-text-muted mb-0.5">
+                EDZÉSTERVEZŐ
+              </p>
+              <h1 className="font-display text-xl font-extrabold tracking-tight">
+                <span className="text-text-primary">GOON</span>
+                <span className="text-accent">&</span>
+                <span className="text-text-primary">GAIN</span>
+              </h1>
             </Link>
-            {/* Coach Bebi quick access */}
-            <Link
-              to="/coach"
-              className="p-2 border border-accent/50 bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
-              aria-label="Coach Bebi"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="square" strokeLinejoin="miter" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </Link>
+            <div className="flex items-center gap-2">
+              {/* Current split type badge */}
+              <Link
+                to="/settings"
+                className="px-2 py-1 bg-bg-secondary border border-text-muted/30 hover:border-accent transition-colors"
+              >
+                <span className="text-2xs font-display uppercase tracking-wider text-accent">
+                  {splitType === 'ppl' ? 'PPL' : 'BRO'}
+                </span>
+              </Link>
+              {/* Coach Bebi quick access */}
+              <Link
+                to="/coach"
+                className="p-2 border border-accent/50 bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                aria-label="Coach Bebi"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="square" strokeLinejoin="miter" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Active Workout Banner - Shows if there's an ongoing session */}
+      <div className="pt-4">
+        <ActiveWorkoutBanner />
+      </div>
 
       {/* Main Content */}
       {hasWorkoutHistory ? (
