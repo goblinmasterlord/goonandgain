@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useWorkoutStore } from '@/stores'
-import { SetLogger, RestTimer, ExerciseTransition, WorkoutSummary } from '@/components/workout'
+import { SetLogger, RestTimer, ExerciseTransition, WorkoutSummary, AddExercisePrompt } from '@/components/workout'
 import { Button } from '@/components/ui'
 import { getTemplateTotalSets, getTemplateEstimatedDuration, getTemplateById, getExerciseById } from '@/data'
 import { isCustomTemplateId, getCustomTemplateNumericId, getCustomTemplateById, customTemplateToWorkoutTemplate } from '@/lib/db'
@@ -14,10 +14,12 @@ export function WorkoutPage() {
     isActive,
     template,
     startWorkout,
+    startQuickWorkout,
     endWorkout,
     completedSets,
     currentExerciseIndex,
     showWorkoutSummary,
+    isQuickWorkout,
   } = useWorkoutStore()
 
   const [showEndConfirm, setShowEndConfirm] = useState(false)
@@ -29,6 +31,21 @@ export function WorkoutPage() {
     async function loadTemplatePreview() {
       const templateId = searchParams.get('template')
       if (!templateId || isActive) return
+
+      // Check if this is a quick workout
+      if (templateId === 'quick') {
+        // Start quick workout immediately
+        setIsLoading(true)
+        try {
+          await startQuickWorkout()
+        } catch (error) {
+          console.error('Failed to start quick workout:', error)
+          navigate('/')
+        } finally {
+          setIsLoading(false)
+        }
+        return
+      }
 
       // Check if this is a custom template
       if (isCustomTemplateId(templateId)) {
@@ -52,7 +69,7 @@ export function WorkoutPage() {
     }
 
     loadTemplatePreview()
-  }, [searchParams, isActive, navigate])
+  }, [searchParams, isActive, navigate, startQuickWorkout])
 
   const handleStartWorkout = async () => {
     const templateId = searchParams.get('template')
@@ -107,56 +124,61 @@ export function WorkoutPage() {
     return <NoActiveWorkout />
   }
 
-  // Calculate progress
-  const totalSets = getTemplateTotalSets(template)
+  // Calculate progress (for quick workout, show just completed sets)
+  const totalSets = isQuickWorkout ? completedSets.length : getTemplateTotalSets(template)
   const completedSetCount = completedSets.length
-  const progressPercent = totalSets > 0 ? (completedSetCount / totalSets) * 100 : 0
+  const progressPercent = isQuickWorkout ? 100 : (totalSets > 0 ? (completedSetCount / totalSets) * 100 : 0)
 
-  // Check if workout is complete (after dismissing summary)
-  const isWorkoutComplete = !showWorkoutSummary &&
+  // Check if workout is complete (after dismissing summary) - not applicable for quick workouts
+  const isWorkoutComplete = !isQuickWorkout && !showWorkoutSummary &&
     currentExerciseIndex >= template.exercises.length - 1 &&
     completedSets.filter((s) => s.exerciseId === template.exercises[template.exercises.length - 1]?.exerciseId).length >=
     (template.exercises[template.exercises.length - 1]?.targetSets || 0)
 
+  // For quick workout with no exercises yet, just show the add exercise prompt
+  const hasNoExercises = template.exercises.length === 0
+
   return (
     <div className="min-h-screen bg-bg-primary relative">
-      {/* Top Progress Bar */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-bg-primary/80 backdrop-blur-sm border-b border-text-muted/20">
-        <div className="h-1 bg-bg-elevated">
-          <div
-            className="h-full bg-accent transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <div className="px-5 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-sm text-accent">
-              {completedSetCount}/{totalSets}
-            </span>
-            <span className="text-text-muted text-2xs font-display uppercase tracking-wider">
-              sorozat
-            </span>
+      {/* Top Progress Bar - hide for quick workout with no exercises */}
+      {!hasNoExercises && (
+        <div className="fixed top-0 left-0 right-0 z-40 bg-bg-primary/80 backdrop-blur-sm border-b border-text-muted/20">
+          <div className="h-1 bg-bg-elevated">
+            <div
+              className="h-full bg-accent transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
-          <button
-            onClick={() => setShowEndConfirm(true)}
-            className="text-danger text-sm font-display uppercase tracking-wider hover:underline"
-          >
-            Befejezés
-          </button>
+          <div className="px-5 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-sm text-accent">
+                {isQuickWorkout ? completedSetCount : `${completedSetCount}/${totalSets}`}
+              </span>
+              <span className="text-text-muted text-2xs font-display uppercase tracking-wider">
+                sorozat
+              </span>
+            </div>
+            <button
+              onClick={() => setShowEndConfirm(true)}
+              className="text-danger text-sm font-display uppercase tracking-wider hover:underline"
+            >
+              Befejezés
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
-      <div className="pt-16">
+      <div className={hasNoExercises ? '' : 'pt-16'}>
         {isWorkoutComplete ? (
           <WorkoutComplete
             template={template}
             completedSets={completedSetCount}
             onFinish={handleEndWorkout}
           />
-        ) : (
+        ) : !hasNoExercises ? (
           <SetLogger />
-        )}
+        ) : null}
       </div>
 
       {/* Rest Timer Overlay */}
@@ -167,6 +189,9 @@ export function WorkoutPage() {
 
       {/* Workout Summary Screen */}
       <WorkoutSummary />
+
+      {/* Add Exercise Prompt (for quick workouts) */}
+      <AddExercisePrompt />
 
       {/* End Workout Confirmation */}
       {showEndConfirm && (

@@ -195,7 +195,7 @@ export function CustomWorkoutBuilderPage() {
   }
 
   return (
-    <div className="fixed inset-0 bg-bg-primary flex flex-col z-50">
+    <div className="fixed inset-0 bg-bg-primary flex flex-col z-[60]">
       {/* Header */}
       <header className="px-4 pt-5 pb-3 border-b-2 border-text-muted/20 flex-shrink-0">
         <button
@@ -315,7 +315,7 @@ export function CustomWorkoutBuilderPage() {
       </div>
 
       {/* Footer navigation */}
-      <div className="px-4 py-4 border-t-2 border-text-muted/20 flex-shrink-0 bg-bg-primary">
+      <div className="px-4 pt-4 pb-6 border-t-2 border-text-muted/20 flex-shrink-0 bg-bg-primary pb-safe">
         <div className="flex gap-3">
           {currentStepIndex > 0 && (
             <Button variant="secondary" className="flex-1" onClick={goToPrevStep}>
@@ -1038,7 +1038,7 @@ function ExerciseConfigView({
       </div>
 
       {/* Summary & Save */}
-      <div className="px-4 py-4 border-t-2 border-text-muted/20 flex-shrink-0 bg-bg-primary">
+      <div className="px-4 pt-4 pb-6 border-t-2 border-text-muted/20 flex-shrink-0 bg-bg-primary pb-safe">
         <div className="p-3 bg-bg-secondary border border-text-muted/20 mb-4">
           <p className="text-center text-text-secondary">
             <span className="font-mono font-bold text-accent text-lg">{sets}</span>
