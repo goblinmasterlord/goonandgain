@@ -19,6 +19,7 @@ interface WorkoutState {
   template: WorkoutTemplate | null
   isActive: boolean
   startedAt: Date | null
+  isQuickWorkout: boolean  // true if this is an ad-hoc workout
 
   // Current exercise tracking
   currentExerciseIndex: number
@@ -34,6 +35,9 @@ interface WorkoutState {
     wasEarlyFinish: boolean  // true if skipped sets
   } | null
   showWorkoutSummary: boolean
+
+  // Quick workout: show add exercise prompt after completing an exercise
+  showAddExercisePrompt: boolean
 
   // Rest timer
   isResting: boolean
@@ -51,6 +55,8 @@ interface WorkoutState {
 
   // Actions
   startWorkout: (templateId: string) => Promise<void>
+  startQuickWorkout: () => Promise<void>
+  addQuickExercise: (exerciseId: string, targetSets: number, targetRepMin: number, targetRepMax: number, restSeconds: number) => Promise<void>
   endWorkout: (notes?: string) => Promise<void>
   logCurrentSet: () => Promise<void>
   skipSet: () => void
@@ -74,6 +80,8 @@ interface WorkoutState {
   // Transition actions
   dismissExerciseTransition: () => Promise<void>
   dismissWorkoutSummary: () => void
+  dismissAddExercisePrompt: () => void
+  finishQuickWorkout: () => void
 
   // Reset
   reset: () => void
@@ -87,12 +95,14 @@ const initialState = {
   template: null,
   isActive: false,
   startedAt: null,
+  isQuickWorkout: false,
   currentExerciseIndex: 0,
   currentSetNumber: 1,
   completedSets: [],
   showExerciseTransition: false,
   transitionData: null,
   showWorkoutSummary: false,
+  showAddExercisePrompt: false,
   isResting: false,
   restTimeRemaining: 0,
   restTimerInterval: null,
@@ -149,6 +159,74 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     }
   },
 
+  startQuickWorkout: async () => {
+    const sessionId = await createSession('quick-workout')
+
+    // Create an empty template for quick workout
+    const template: WorkoutTemplate = {
+      id: 'quick-workout',
+      nameHu: 'Szabad edzés',
+      nameEn: 'Quick Workout',
+      muscleFocus: 'flex',
+      exercises: [],
+    }
+
+    set({
+      sessionId,
+      template,
+      isActive: true,
+      isQuickWorkout: true,
+      startedAt: new Date(),
+      currentExerciseIndex: 0,
+      currentSetNumber: 1,
+      completedSets: [],
+      weightInput: '',
+      repsInput: '',
+      rirInput: null,
+      addedWeightInput: '',
+      showAddExercisePrompt: true, // Show exercise picker immediately
+    })
+  },
+
+  addQuickExercise: async (
+    exerciseId: string,
+    targetSets: number,
+    targetRepMin: number,
+    targetRepMax: number,
+    restSeconds: number
+  ) => {
+    const { template } = get()
+    if (!template) return
+
+    const newExercise: TemplateExercise = {
+      exerciseId,
+      order: template.exercises.length + 1,
+      targetSets,
+      targetRepMin,
+      targetRepMax,
+      restSeconds,
+    }
+
+    const updatedTemplate: WorkoutTemplate = {
+      ...template,
+      exercises: [...template.exercises, newExercise],
+    }
+
+    set({
+      template: updatedTemplate,
+      currentExerciseIndex: updatedTemplate.exercises.length - 1,
+      currentSetNumber: 1,
+      showAddExercisePrompt: false,
+      weightInput: '',
+      repsInput: '',
+      rirInput: null,
+      addedWeightInput: '',
+    })
+
+    // Load last session data for the new exercise
+    await get().loadLastSessionData(exerciseId)
+  },
+
   endWorkout: async (notes?: string) => {
     const { sessionId, restTimerInterval } = get()
     if (sessionId) {
@@ -170,6 +248,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       repsInput,
       rirInput,
       addedWeightInput,
+      isQuickWorkout,
     } = get()
 
     if (!sessionId || !template || !rirInput) return
@@ -188,7 +267,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
     // Check if we should move to next exercise
     if (currentSetNumber >= exercise.targetSets) {
-      // Exercise complete - show transition screen
+      // Exercise complete
       const nextIndex = currentExerciseIndex + 1
       const nextExerciseId = nextIndex < template.exercises.length
         ? template.exercises[nextIndex].exerciseId
@@ -197,7 +276,19 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // Get sets for the completed exercise
       const exerciseSets = completedSets.filter(s => s.exerciseId === exercise.exerciseId)
 
-      if (nextExerciseId) {
+      if (isQuickWorkout && !nextExerciseId) {
+        // Quick workout: show add exercise prompt instead of summary
+        set({
+          completedSets,
+          showAddExercisePrompt: true,
+          transitionData: {
+            completedExerciseId: exercise.exerciseId,
+            completedExerciseSets: exerciseSets,
+            nextExerciseId: null,
+            wasEarlyFinish: false,
+          },
+        })
+      } else if (nextExerciseId) {
         // Show exercise transition screen
         set({
           completedSets,
@@ -237,7 +328,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
 
   skipSet: () => {
-    const { template, currentExerciseIndex, currentSetNumber, completedSets, sessionId } = get()
+    const { template, currentExerciseIndex, currentSetNumber, completedSets, sessionId, isQuickWorkout } = get()
     if (!template) return
 
     const exercise = template.exercises[currentExerciseIndex]
@@ -252,7 +343,18 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       const exerciseSets = completedSets.filter(s => s.exerciseId === exercise.exerciseId && s.sessionId === sessionId)
 
-      if (nextExerciseId) {
+      if (isQuickWorkout && !nextExerciseId) {
+        // Quick workout: show add exercise prompt
+        set({
+          showAddExercisePrompt: true,
+          transitionData: {
+            completedExerciseId: exercise.exerciseId,
+            completedExerciseSets: exerciseSets,
+            nextExerciseId: null,
+            wasEarlyFinish: exerciseSets.length < exercise.targetSets,
+          },
+        })
+      } else if (nextExerciseId) {
         set({
           showExerciseTransition: true,
           transitionData: {
@@ -411,6 +513,29 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({
       showWorkoutSummary: false,
       transitionData: null,
+    })
+  },
+
+  dismissAddExercisePrompt: () => {
+    set({
+      showAddExercisePrompt: false,
+    })
+  },
+
+  finishQuickWorkout: () => {
+    // Trigger the workout summary
+    const { completedSets, template, transitionData } = get()
+    set({
+      showAddExercisePrompt: false,
+      showWorkoutSummary: true,
+      transitionData: transitionData || {
+        completedExerciseId: template?.exercises[template.exercises.length - 1]?.exerciseId || '',
+        completedExerciseSets: completedSets.filter(
+          (s) => s.exerciseId === template?.exercises[template.exercises.length - 1]?.exerciseId
+        ),
+        nextExerciseId: null,
+        wasEarlyFinish: false,
+      },
     })
   },
 

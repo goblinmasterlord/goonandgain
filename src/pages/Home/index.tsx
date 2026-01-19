@@ -243,6 +243,31 @@ function EmptyState({ availableTemplates, customTemplates }: { availableTemplate
         </p>
       </motion.div>
 
+      {/* Quick Workout Button */}
+      <Link
+        to="/workout?template=quick"
+        className="block w-full p-4 mb-6 bg-bg-secondary border-2 border-dashed border-accent/50 hover:border-accent hover:bg-accent/5 transition-all"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-accent/20 flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="square" d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="font-display text-lg font-bold uppercase tracking-wide text-accent">
+              Szabad edzés
+            </h3>
+            <p className="text-xs text-text-muted">
+              Válassz gyakorlatokat menet közben
+            </p>
+          </div>
+          <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="square" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </Link>
+
       {/* Custom Templates */}
       {customTemplates.length > 0 && (
         <div className="space-y-3 mb-6">
@@ -472,8 +497,8 @@ function ActiveUserView({
           </div>
         </div>
 
-        {/* Weekly Review Button */}
-        {weeklyStats.totalSetsThisWeek > 0 && (
+        {/* Weekly Review Button - only available on Sunday */}
+        {weeklyStats.totalSetsThisWeek > 0 && new Date().getDay() === 0 && (
           <motion.button
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
@@ -490,6 +515,33 @@ function ActiveUserView({
             </svg>
           </motion.button>
         )}
+      </section>
+
+      {/* Quick Workout Button */}
+      <section className="px-4 pt-4">
+        <Link
+          to="/workout?template=quick"
+          className="block w-full p-4 bg-bg-secondary border-2 border-dashed border-accent/50 hover:border-accent hover:bg-accent/5 transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-accent/20 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="square" d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-display text-lg font-bold uppercase tracking-wide text-accent">
+                Szabad edzés
+              </h3>
+              <p className="text-xs text-text-muted">
+                Válassz gyakorlatokat menet közben
+              </p>
+            </div>
+            <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="square" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
       </section>
 
       {/* Custom Templates section */}
